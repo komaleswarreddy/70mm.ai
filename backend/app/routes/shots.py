@@ -8,6 +8,8 @@ from app import models, schemas
 
 router = APIRouter(prefix="/shots", tags=["shots"])
 
+# ── Collection routes (must come BEFORE /{id} param routes) ──────────────────
+
 @router.get("/", response_model=List[schemas.ShotResponse])
 async def list_shots(scene_id: str, db: AsyncSession = Depends(get_db)):
     result = await db.execute(
@@ -56,6 +58,38 @@ async def create_shot(scene_id: str, shot: schemas.ShotCreate, db: AsyncSession 
     )
     return result.scalar_one()
 
+@router.post("/reorder", status_code=status.HTTP_204_NO_CONTENT)
+async def reorder_shots(request: schemas.ReorderRequest, db: AsyncSession = Depends(get_db)):
+    for idx, s_id in enumerate(request.ids):
+        result = await db.execute(select(models.Shot).filter(models.Shot.id == s_id))
+        shot = result.scalar_one_or_none()
+        if shot:
+            shot.order = idx
+    await db.commit()
+    return None
+
+@router.put("/batch", response_model=List[schemas.ShotResponse])
+async def batch_update_shots(batch: schemas.ShotBatchUpdate, db: AsyncSession = Depends(get_db)):
+    """Batch update multiple shots at once — route MUST be before /{id}."""
+    updated_shots = []
+    for s_id in batch.ids:
+        result = await db.execute(
+            select(models.Shot)
+            .options(selectinload(models.Shot.storyboard_frames))
+            .filter(models.Shot.id == s_id)
+        )
+        shot = result.scalar_one_or_none()
+        if shot:
+            for var, value in batch.updates.model_dump(exclude_unset=True).items():
+                setattr(shot, var, value)
+            updated_shots.append(shot)
+    await db.commit()
+    for shot in updated_shots:
+        await db.refresh(shot)
+    return updated_shots
+
+# ── Item routes (/{id} param — must come AFTER static routes) ────────────────
+
 @router.get("/{id}", response_model=schemas.ShotResponse)
 async def get_shot(id: str, db: AsyncSession = Depends(get_db)):
     result = await db.execute(
@@ -96,16 +130,6 @@ async def delete_shot(id: str, db: AsyncSession = Depends(get_db)):
     await db.commit()
     return None
 
-@router.post("/reorder", status_code=status.HTTP_204_NO_CONTENT)
-async def reorder_shots(request: schemas.ReorderRequest, db: AsyncSession = Depends(get_db)):
-    for idx, s_id in enumerate(request.ids):
-        result = await db.execute(select(models.Shot).filter(models.Shot.id == s_id))
-        shot = result.scalar_one_or_none()
-        if shot:
-            shot.order = idx
-    await db.commit()
-    return None
-
 @router.get("/{id}/muse-history", response_model=List[schemas.DirectorMuseHistoryResponse])
 async def list_muse_history(id: str, db: AsyncSession = Depends(get_db)):
     result = await db.execute(
@@ -114,24 +138,3 @@ async def list_muse_history(id: str, db: AsyncSession = Depends(get_db)):
         .order_by(models.DirectorMuseHistory.timestamp.desc())
     )
     return result.scalars().all()
-
-@router.put("/batch", response_model=List[schemas.ShotResponse])
-async def batch_update_shots(batch: schemas.ShotBatchUpdate, db: AsyncSession = Depends(get_db)):
-    updated_shots = []
-    for s_id in batch.ids:
-        result = await db.execute(
-            select(models.Shot)
-            .options(selectinload(models.Shot.storyboard_frames))
-            .filter(models.Shot.id == s_id)
-        )
-        shot = result.scalar_one_or_none()
-        if shot:
-            for var, value in batch.updates.model_dump(exclude_unset=True).items():
-                setattr(shot, var, value)
-            updated_shots.append(shot)
-    await db.commit()
-    # Refresh to return standard Response
-    for shot in updated_shots:
-        await db.refresh(shot)
-    return updated_shots
-

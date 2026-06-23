@@ -139,11 +139,12 @@ async def duplicate_project(id: str, db: AsyncSession = Depends(get_db), current
 
     db.add(dup_project)
     await db.flush()
+    await db.refresh(dup_project)  # ensure id is populated in async context
+    dup_project_id = str(dup_project.id)  # capture while object is alive
     
-    # 3. Duplicate characters
     for char in project.characters:
         dup_char = models.Character(
-            project_id=dup_project.id,
+            project_id=dup_project_id,
             name=char.name,
             description=char.description,
             traits=char.traits,
@@ -162,7 +163,7 @@ async def duplicate_project(id: str, db: AsyncSession = Depends(get_db), current
     # 4. Duplicate scenes, action blocks, dialogues, shots, and storyboards
     for scene in project.scenes:
         dup_scene = models.Scene(
-            project_id=dup_project.id,
+            project_id=dup_project_id,
             scene_number=scene.scene_number,
             heading=scene.heading,
             raw_content=scene.raw_content,
@@ -171,10 +172,12 @@ async def duplicate_project(id: str, db: AsyncSession = Depends(get_db), current
         )
         db.add(dup_scene)
         await db.flush()
+        await db.refresh(dup_scene)
+        dup_scene_id = str(dup_scene.id)
         
         for block in scene.action_blocks:
             dup_block = models.ActionBlock(
-                scene_id=dup_scene.id,
+                scene_id=dup_scene_id,
                 content=block.content,
                 order=block.order
             )
@@ -182,7 +185,7 @@ async def duplicate_project(id: str, db: AsyncSession = Depends(get_db), current
             
         for dial in scene.dialogues:
             dup_dial = models.Dialogue(
-                scene_id=dup_scene.id,
+                scene_id=dup_scene_id,
                 character_name=dial.character_name,
                 content=dial.content,
                 order=dial.order
@@ -191,7 +194,7 @@ async def duplicate_project(id: str, db: AsyncSession = Depends(get_db), current
             
         for shot in scene.shots:
             dup_shot = models.Shot(
-                scene_id=dup_scene.id,
+                scene_id=dup_scene_id,
                 shot_number=shot.shot_number,
                 shot_size=shot.shot_size,
                 angle=shot.angle,
@@ -206,10 +209,12 @@ async def duplicate_project(id: str, db: AsyncSession = Depends(get_db), current
             )
             db.add(dup_shot)
             await db.flush()
+            await db.refresh(dup_shot)
+            dup_shot_id = str(dup_shot.id)
             
             for frame in shot.storyboard_frames:
                 dup_frame = models.StoryboardFrame(
-                    shot_id=dup_shot.id,
+                    shot_id=dup_shot_id,
                     image_url=frame.image_url,
                     prompt=frame.prompt,
                     negative_prompt=frame.negative_prompt,
@@ -227,7 +232,7 @@ async def duplicate_project(id: str, db: AsyncSession = Depends(get_db), current
             selectinload(models.Project.scenes).selectinload(models.Scene.dialogues),
             selectinload(models.Project.scenes).selectinload(models.Scene.shots).selectinload(models.Shot.storyboard_frames)
         )
-        .filter(models.Project.id == dup_project.id)
+        .filter(models.Project.id == dup_project_id)
     )
     return reload_result.scalar_one()
 

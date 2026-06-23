@@ -8,6 +8,38 @@ from app import models, schemas
 
 router = APIRouter(prefix="/search", tags=["search"])
 
+@router.get("/")
+async def global_search(q: str = Query(..., min_length=1), db: AsyncSession = Depends(get_db)):
+    """Unified search across projects, scenes, and shots."""
+    # Projects
+    proj_result = await db.execute(
+        select(models.Project)
+        .filter(models.Project.title.ilike(f"%{q}%") | models.Project.logline.ilike(f"%{q}%"))
+    )
+    projects = [{"id": p.id, "title": p.title, "logline": p.logline} for p in proj_result.scalars().all()]
+
+    # Scenes
+    scene_result = await db.execute(
+        select(models.Scene)
+        .filter(models.Scene.heading.ilike(f"%{q}%") | models.Scene.raw_content.ilike(f"%{q}%"))
+    )
+    scenes = [{"id": s.id, "heading": s.heading, "project_id": s.project_id} for s in scene_result.scalars().all()]
+
+    # Shots
+    shot_result = await db.execute(
+        select(models.Shot)
+        .filter(models.Shot.notes.ilike(f"%{q}%") | models.Shot.visual_tip.ilike(f"%{q}%"))
+    )
+    shots = [{"id": s.id, "shot_number": s.shot_number, "scene_id": s.scene_id} for s in shot_result.scalars().all()]
+
+    return {
+        "query": q,
+        "projects": projects,
+        "scenes": scenes,
+        "shots": shots,
+        "total": len(projects) + len(scenes) + len(shots),
+    }
+
 @router.get("/projects")
 async def search_projects(query: str = Query(...), db: AsyncSession = Depends(get_db)):
     result = await db.execute(
