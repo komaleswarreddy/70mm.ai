@@ -1,0 +1,40 @@
+# Firebase
+backend/firebase/
+
+# Python
+backend/venv/
+backend/__pycache__/
+backend/.pytest_cache/
+*.pyc
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# Environment files
+backend/.env
+frontend/.env.local
+
+# Node
+frontend/node_modules/
+frontend/.next/
+
+# Logs
+*.log
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# VSCode
+.vscode/
+
+# Python cache
+.pytest_cache/
+
+# Environment files
+.env
+.env.local
+backend/.env
+frontend/.env.local
