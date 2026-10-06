@@ -26,8 +26,23 @@ class Project(Base):
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     is_deleted = Column(Integer, default=0)
 
+    # ── Storyboard & Cinematography Engine (Stage 2 + Stage 8) ────────────
+    # NOTE: distinct from `act_structure`/`beat_sheet` above, which hold the
+    # idea-to-story generator's output (act_1/act_2/act_3 prose + a flat beat
+    # list). `screenplay_structure` holds Stage 2's Acts -> Sequences -> Beats
+    # hierarchy derived from an already-parsed screenplay's real scene numbers.
+    screenplay_structure = Column(Text, nullable=True)  # JSON: {"acts": [...]}
+    # Board footer legend (camera style / color tone / lighting / mood / notes
+    # / lens guide) — one project-level default, editable, shared by every
+    # board on compose rather than recomputed per board.
+    board_legend_settings = Column(Text, nullable=True)  # JSON
+    # Era/setting stated in every image prompt, e.g. "India, 1965" -- without it
+    # nothing tells the image model a period film is a period film.
+    period = Column(String, nullable=True)
+
     scenes = relationship("Scene", back_populates="project", cascade="all, delete-orphan", lazy="selectin")
     characters = relationship("Character", back_populates="project", cascade="all, delete-orphan", lazy="selectin")
+    boards = relationship("Board", back_populates="project", cascade="all, delete-orphan", lazy="selectin")
 
 class Scene(Base):
     __tablename__ = "scenes"
@@ -40,6 +55,22 @@ class Scene(Base):
     parser_meta = Column(Text, nullable=True)  # JSON String
     order = Column(Integer, default=0)
     created_at = Column(DateTime, default=datetime.utcnow)
+
+    # ── Stage 1: deterministic parse (slugline breakdown) ─────────────────
+    int_ext = Column(String, nullable=True)          # INT | EXT | INT/EXT
+    location = Column(String, nullable=True)
+    time_of_day = Column(String, nullable=True)       # DAY | NIGHT | CONTINUOUS | ...
+    raw_action = Column(Text, nullable=True)          # joined action lines
+    raw_dialogue = Column(Text, nullable=True)        # JSON: [{"character","content"}]
+    characters_present = Column(Text, nullable=True)  # JSON list[str]
+
+    # ── Stage 3: scene understanding ───────────────────────────────────────
+    action_summary = Column(Text, nullable=True)
+    emotion = Column(String, nullable=True)
+    conflict = Column(Text, nullable=True)
+    key_objects = Column(Text, nullable=True)         # JSON list[str]
+    visual_emphasis = Column(Text, nullable=True)
+    continuity_notes = Column(Text, nullable=True)    # JSON list[str]
 
     project = relationship("Project", back_populates="scenes")
     action_blocks = relationship("ActionBlock", back_populates="scene", cascade="all, delete-orphan", lazy="selectin")
@@ -84,6 +115,18 @@ class Character(Base):
     reference_image_url = Column(String, nullable=True)
     relationships = Column(Text, nullable=True)  # JSON structure: {"character_id": "type"}
 
+    # ── Stage 6: character asset & consistency system ──────────────────────
+    # `reference_image_url` above stays the single "primary" reference used
+    # by existing UI; these hold the full locked bible without touching it.
+    reference_image_paths = Column(Text, nullable=True)  # JSON list[str], 1-4 locked refs
+    embedding_vector = Column(Text, nullable=True)        # JSON list[float] (CLIP embedding)
+    locked_seed = Column(Integer, nullable=True)
+    is_locked = Column(Integer, default=0)  # bool: bible finalized, safe to condition generation on
+    # Costume continuity, kept apart from `description` (identity only: face,
+    # body, hair) so a character can change clothes between scenes as the
+    # script says. JSON: {"default": str, "by_scene": {"<scene_number>": str}}
+    wardrobe = Column(Text, nullable=True)
+
     project = relationship("Project", back_populates="characters")
 
 class DirectorMuseHistory(Base):
@@ -121,6 +164,41 @@ class Shot(Base):
     status = Column(String, default="Pending")
     color_label = Column(String, nullable=True)
 
+    # ── Stage 4: automatic shot division ────────────────────────────────────
+    # `shot_type` is the shot's fundamental kind (spec's canonical enum incl.
+    # Two-Shot/OTS/POV/Insert/Cutaway, which `shot_size` alone can't express).
+    # `reasoning` is required by the acceptance criteria — never left empty.
+    shot_type = Column(String, nullable=True)
+    reasoning = Column(Text, nullable=True)
+
+    # ── Stage 5: cinematography plan (extra fields beyond the existing
+    # shot_size/angle/movement/lens/lighting/emotion/color_palette above) ──
+    camera_height = Column(String, nullable=True)
+    framing = Column(Text, nullable=True)
+    composition_notes = Column(Text, nullable=True)
+    # Rich structured lighting {key, fill, backlight, practicals, quality,
+    # direction, intensity, color_temp_k}. Kept separate from the existing
+    # plain-string `lighting` column, which the frontend already renders.
+    lighting_detail = Column(Text, nullable=True)  # JSON
+    contrast = Column(String, nullable=True)          # Low | Medium | High
+    depth_of_field = Column(String, nullable=True)    # Shallow | Deep
+    perspective_notes = Column(Text, nullable=True)
+
+    # ── Stage 7: image generation ───────────────────────────────────────────
+    # Which named characters actually appear in THIS shot (a subset of the
+    # scene's characters_present — e.g. one CU in a 2-character scene only
+    # has one of them). Drives which characters' USO reference images get
+    # pooled for this shot's generation.
+    characters_in_shot = Column(Text, nullable=True)  # JSON list[str]
+
+    # ── Stage 9: visual continuity QA ───────────────────────────────────────
+    needs_review = Column(Integer, default=0)  # bool
+    # ── Stage 8: production board sheet ────────────────────────────────────
+    board_caption = Column(Text, nullable=True)   # one-line action caption under the panel
+    board_dialogue = Column(Text, nullable=True)  # key dialogue line, e.g. SITA: "Do I know you?"
+    board_crop = Column(Text, nullable=True)      # JSON [left, top, right, bottom] in source pixels -- a reframe, never baked into the image
+    continuity_score = Column(Integer, nullable=True)  # cosine similarity * 1000, for debugging thresholds
+
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -139,6 +217,27 @@ class StoryboardFrame(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
 
     shot = relationship("Shot", back_populates="storyboard_frames")
+
+class Board(Base):
+    """Stage 8: a composited, numbered multi-panel board sheet covering a
+    contiguous range of scenes (~5 scenes/board) — the printable PNG/PDF a
+    1st AD or DP would actually be handed, not a single shot's image."""
+    __tablename__ = "boards"
+
+    id = Column(String, primary_key=True, default=generate_uuid)
+    project_id = Column(String, ForeignKey("projects.id", ondelete="CASCADE"), nullable=False)
+    board_number = Column(Integer, nullable=False)
+    scene_range_start = Column(Integer, nullable=False)
+    scene_range_end = Column(Integer, nullable=False)
+    title = Column(String, nullable=True)
+    length_label = Column(String, nullable=True)      # e.g. "~22-24 MINS (PORTION)"
+    page_range_label = Column(String, nullable=True)  # e.g. "1 OF 4"
+    output_image_path = Column(String, nullable=True)
+    output_pdf_path = Column(String, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    project = relationship("Project", back_populates="boards")
 
 class ProjectVersion(Base):
     __tablename__ = "project_versions"

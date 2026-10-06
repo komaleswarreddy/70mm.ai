@@ -2,9 +2,10 @@
 
 import React, { useEffect, useState, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { 
-  Users, MessageSquare, ShieldAlert, Monitor, Wallet, BookOpen, 
-  Layers, Shield, Undo, Redo, ZoomIn, ZoomOut, CheckCircle2, RefreshCw 
+import {
+  Users, MessageSquare, ShieldAlert, Monitor, Wallet, BookOpen,
+  Layers, Shield, Undo, Redo, ZoomIn, ZoomOut, CheckCircle2, RefreshCw,
+  Maximize2, Minimize2
 } from 'lucide-react';
 
 import { Navbar } from '../../../components/navbar';
@@ -46,6 +47,9 @@ export default function WorkspacePage() {
   const [isUploadingScript, setIsUploadingScript] = useState(false);
   const [isSavingScript, setIsSavingScript] = useState(false);
   const [isGeneratingImage, setIsGeneratingImage] = useState<string | null>(null);
+  const [isStructuring, setIsStructuring] = useState(false);
+  const [isComposingBoards, setIsComposingBoards] = useState(false);
+  const [pipelineError, setPipelineError] = useState<string | null>(null);
 
   // Tab configurations
   const [leftTab, setLeftTab] = useState<'outline' | 'comments' | 'agents'>('outline');
@@ -56,6 +60,21 @@ export default function WorkspacePage() {
   const [leftWidth, setLeftWidth] = useState(250);
   const [rightWidth, setRightWidth] = useState(420);
   const [bottomHeight, setBottomHeight] = useState(190);
+  const [isBottomMaximized, setIsBottomMaximized] = useState(false);
+  const preMaximizeBottomHeightRef = useRef(190);
+
+  const toggleBottomMaximize = () => {
+    if (isBottomMaximized) {
+      setBottomHeight(preMaximizeBottomHeightRef.current);
+      setIsBottomMaximized(false);
+    } else {
+      preMaximizeBottomHeightRef.current = bottomHeight;
+      // window is only touched inside this click handler, never during
+      // render, so this stays SSR-safe.
+      setBottomHeight(window.innerHeight - 200);
+      setIsBottomMaximized(true);
+    }
+  };
 
   // Undo/Redo & Zoom & Autosave states
   const [editorZoom, setEditorZoom] = useState(13); // base font size in px
@@ -143,6 +162,7 @@ export default function WorkspacePage() {
 
   const startResizeBottom = (mouseDownEvent: React.MouseEvent) => {
     mouseDownEvent.preventDefault();
+    setIsBottomMaximized(false); // manual drag overrides whatever maximize state was active
     const startY = mouseDownEvent.clientY;
     const startHeight = bottomHeight;
 
@@ -309,6 +329,108 @@ export default function WorkspacePage() {
     }
   };
 
+  // Stage 2: structure the parsed screenplay into acts/sequences/beats.
+  const handleStructureProject = async () => {
+    setPipelineError(null);
+    setIsStructuring(true);
+    try {
+      await api.structureProject(projectId);
+      await fetchProjectData();
+    } catch (err: any) {
+      console.error(err);
+      setPipelineError(`Structure failed: ${err.message || err}`);
+    } finally {
+      setIsStructuring(false);
+    }
+  };
+
+  // Stage 3: scene understanding. Returns the updated scene so the caller
+  // (SceneCards) doesn't need a second refetch just to read the result.
+  const handleUnderstandScene = async (sceneId: string) => {
+    setPipelineError(null);
+    try {
+      const updated = await api.understandScene(sceneId);
+      await fetchProjectData();
+      return updated;
+    } catch (err: any) {
+      console.error(err);
+      setPipelineError(`Scene understanding failed: ${err.message || err}`);
+      throw err;
+    }
+  };
+
+  // Stage 4/5: automatic shot division + cinematography plan. Replaces all
+  // existing shots for the scene (a regenerate, not an incremental add).
+  const handleGenerateShotPlan = async (sceneId: string) => {
+    setPipelineError(null);
+    try {
+      await api.generateShotPlan(sceneId);
+      await fetchProjectData();
+    } catch (err: any) {
+      console.error(err);
+      setPipelineError(`Shot plan generation failed: ${err.message || err}`);
+      throw err;
+    }
+  };
+
+  // Stage 6: lock a character's reference set (1-4 uploaded photos, or none
+  // to auto-generate + freeze a seed).
+  const handleLockCharacterReference = async (characterId: string, files?: File[]) => {
+    setPipelineError(null);
+    try {
+      const updated = await api.lockCharacterReference(characterId, files);
+      await fetchProjectData();
+      return updated;
+    } catch (err: any) {
+      console.error(err);
+      setPipelineError(`Character lock failed: ${err.message || err}`);
+      throw err;
+    }
+  };
+
+  // Stage 8: compose Stage-7 images into board sheets (PNG + PDF).
+  const handleComposeBoards = async () => {
+    setPipelineError(null);
+    setIsComposingBoards(true);
+    try {
+      const boards = await api.composeBoards(projectId);
+      return boards;
+    } catch (err: any) {
+      console.error(err);
+      setPipelineError(`Board composition failed: ${err.message || err}`);
+      throw err;
+    } finally {
+      setIsComposingBoards(false);
+    }
+  };
+
+  // Stage 9: shot-level character-identity/style-drift/color-grade check.
+  const handleCheckShotContinuity = async (shotId: string, reinforcedRegenerate: boolean = false) => {
+    setPipelineError(null);
+    try {
+      const result = await api.checkShotContinuity(shotId, reinforcedRegenerate);
+      await fetchProjectData();
+      return result;
+    } catch (err: any) {
+      console.error(err);
+      setPipelineError(`Continuity check failed: ${err.message || err}`);
+      throw err;
+    }
+  };
+
+  // Stage 10: natural-language shot edit -> structured diff -> re-generation.
+  const handleEditShot = async (shotId: string, instruction: string) => {
+    setPipelineError(null);
+    try {
+      await api.editShot(shotId, instruction);
+      await fetchProjectData();
+    } catch (err: any) {
+      console.error(err);
+      setPipelineError(`Shot edit failed: ${err.message || err}`);
+      throw err;
+    }
+  };
+
   const handleExportPDF = () => {
     window.open(`http://localhost:8000/api/projects/${projectId}/export/pdf`, '_blank');
   };
@@ -334,13 +456,22 @@ export default function WorkspacePage() {
         </div>
       )}
 
-      <Navbar 
-        projectTitle={project?.title} 
-        projectId={projectId} 
+      <Navbar
+        projectTitle={project?.title}
+        projectId={projectId}
         onExportPDF={handleExportPDF}
         onExportCSV={handleExportCSV}
+        onComposeBoards={handleComposeBoards}
+        isComposingBoards={isComposingBoards}
       />
-      
+
+      {pipelineError && (
+        <div className="bg-red-950/80 border-b border-red-500/40 px-6 py-2 flex items-center justify-between text-xs text-red-300 z-40">
+          <span>{pipelineError}</span>
+          <button onClick={() => setPipelineError(null)} className="text-red-400 hover:text-white font-bold px-2 cursor-pointer">×</button>
+        </div>
+      )}
+
       {/* Dynamic resizable layout panels */}
       <div className="flex flex-1 overflow-hidden h-[calc(100vh-3.5rem)]">
         {/* LEFT COLUMN: Sidebar Outline + Comments + Collaboration Agents */}
@@ -369,13 +500,16 @@ export default function WorkspacePage() {
 
           <div className="flex-1 overflow-hidden flex flex-col">
             {leftTab === 'outline' && (
-              <Sidebar 
+              <Sidebar
                 project={project}
                 onGenerateStory={handleGenerateStory}
                 onUploadScript={handleUploadScript}
                 isGeneratingStory={isGeneratingStory}
                 isUploadingScript={isUploadingScript}
                 onRefreshProject={fetchProjectData}
+                onStructureProject={handleStructureProject}
+                isStructuring={isStructuring}
+                onLockCharacterReference={handleLockCharacterReference}
               />
             )}
             {leftTab === 'comments' && (
@@ -442,12 +576,13 @@ export default function WorkspacePage() {
 
           <div className="flex-1 flex overflow-hidden">
             {/* Scene navigation selector columns */}
-            <SceneCards 
+            <SceneCards
               scenes={scenes}
               selectedSceneId={selectedScene?.id}
               onSelectScene={handleSelectScene}
               onFormulateScene={api.formulateScene}
               onReorderScenes={handleReorderScenes}
+              onUnderstandScene={handleUnderstandScene}
             />
             
             {/* Screenplay layout editor */}
@@ -463,24 +598,33 @@ export default function WorkspacePage() {
           {/* BOTTOM STORYBOARD TIMELINE COLLAPSIBLE */}
           <div style={{ height: `${bottomHeight}px` }} className="border-t border-border bg-[#07070c] shrink-0 flex flex-col overflow-hidden">
             {/* Tabs selectors for bottom strip */}
-            <div className="p-2 border-b border-border bg-[#0a0a14] flex items-center justify-start space-x-3">
-              <button 
-                onClick={() => setBottomTab('timeline')}
-                className={`px-2.5 py-0.5 rounded text-[10px] font-bold ${bottomTab === 'timeline' ? 'text-primary bg-white/5' : 'text-gray-500 hover:text-gray-300'}`}
+            <div className="p-2 border-b border-border bg-[#0a0a14] flex items-center justify-between">
+              <div className="flex items-center space-x-3">
+                <button
+                  onClick={() => setBottomTab('timeline')}
+                  className={`px-2.5 py-0.5 rounded text-[10px] font-bold ${bottomTab === 'timeline' ? 'text-primary bg-white/5' : 'text-gray-500 hover:text-gray-300'}`}
+                >
+                  Act Track
+                </button>
+                <button
+                  onClick={() => setBottomTab('storyboard')}
+                  className={`px-2.5 py-0.5 rounded text-[10px] font-bold ${bottomTab === 'storyboard' ? 'text-primary bg-white/5' : 'text-gray-500 hover:text-gray-300'}`}
+                >
+                  Storyboard
+                </button>
+                <button
+                  onClick={() => setBottomTab('animatic')}
+                  className={`px-2.5 py-0.5 rounded text-[10px] font-bold ${bottomTab === 'animatic' ? 'text-primary bg-white/5' : 'text-gray-500 hover:text-gray-300'}`}
+                >
+                  Animatic Engine
+                </button>
+              </div>
+              <button
+                onClick={toggleBottomMaximize}
+                title={isBottomMaximized ? "Restore panel size" : "Maximize panel"}
+                className="p-1 rounded text-gray-500 hover:text-white hover:bg-white/5 cursor-pointer transition-colors"
               >
-                Act Track
-              </button>
-              <button 
-                onClick={() => setBottomTab('storyboard')}
-                className={`px-2.5 py-0.5 rounded text-[10px] font-bold ${bottomTab === 'storyboard' ? 'text-primary bg-white/5' : 'text-gray-500 hover:text-gray-300'}`}
-              >
-                Storyboard
-              </button>
-              <button 
-                onClick={() => setBottomTab('animatic')}
-                className={`px-2.5 py-0.5 rounded text-[10px] font-bold ${bottomTab === 'animatic' ? 'text-primary bg-white/5' : 'text-gray-500 hover:text-gray-300'}`}
-              >
-                Animatic Engine
+                {isBottomMaximized ? <Minimize2 size={13} /> : <Maximize2 size={13} />}
               </button>
             </div>
 
@@ -493,11 +637,12 @@ export default function WorkspacePage() {
                 />
               )}
               {bottomTab === 'storyboard' && (
-                <StoryboardTimeline 
+                <StoryboardTimeline
                   shots={shots}
                   onReorderShots={handleReorderShots}
                   onGenerateImage={handleGenerateImage}
                   isGeneratingImage={isGeneratingImage}
+                  onCheckContinuity={handleCheckShotContinuity}
                 />
               )}
               {bottomTab === 'animatic' && (
@@ -576,13 +721,15 @@ export default function WorkspacePage() {
           {/* Right tab panel contents */}
           <div className="flex-grow overflow-hidden flex flex-col">
             {rightTab === 'shots' && (
-              <ShotPlanner 
+              <ShotPlanner
                 sceneId={selectedScene?.id}
                 shots={shots}
                 onAddShot={handleAddShot}
                 onUpdateShot={handleUpdateShot}
                 onDeleteShot={handleDeleteShot}
                 onTriggerMuse={api.directorsMuse}
+                onGenerateShotPlan={handleGenerateShotPlan}
+                onEditShot={handleEditShot}
               />
             )}
             {rightTab === 'continuity' && (

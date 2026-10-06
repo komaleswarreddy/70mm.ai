@@ -1,5 +1,104 @@
 import re
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
+
+# Time-of-day tokens recognized as-is (case-insensitive). Anything else found
+# in the last dash-separated segment of a slugline is still accepted as a
+# best-effort time_of_day — this whitelist only picks the split point when a
+# heading has more than one dash (e.g. "INT. CAR - HIGHWAY - NIGHT").
+KNOWN_TIME_OF_DAY = {
+    "DAY", "NIGHT", "MORNING", "EVENING", "AFTERNOON", "DUSK", "DAWN",
+    "CONTINUOUS", "LATER", "SAME TIME", "MOMENTS LATER", "SUNSET", "SUNRISE",
+    "MAGIC HOUR", "PRESENT DAY", "FLASHBACK",
+}
+
+_SLUGLINE_PREFIX_RE = re.compile(
+    r'^(INT\.?\s*/\s*EXT\.?|EXT\.?\s*/\s*INT\.?|I\s*/\s*E\.?|INT\.?|EXT\.?|EST\.?)\b[\.\s]*',
+    re.IGNORECASE,
+)
+
+
+def parse_slugline(raw_heading: str) -> Dict[str, Optional[str]]:
+    """
+    Stage 1 deterministic slugline breakdown — no LLM involved.
+    "INT. PLANT NURSERY - DAY" -> {"int_ext": "INT", "location": "PLANT NURSERY", "time_of_day": "DAY"}
+    Handles missing time-of-day and multi-dash locations (e.g. moving-vehicle
+    sluglines like "INT./EXT. CAR - HIGHWAY - NIGHT") by treating the LAST
+    dash-separated segment as time_of_day and joining the rest as location.
+    """
+    text = (raw_heading or "").strip()
+    if not text or text == "PROLOGUE":
+        return {"int_ext": None, "location": None, "time_of_day": None}
+
+    int_ext = None
+    match = _SLUGLINE_PREFIX_RE.match(text)
+    remainder = text
+    if match:
+        raw_prefix = match.group(1).upper().replace(" ", "").replace(".", "")
+        if "INT" in raw_prefix and "EXT" in raw_prefix:
+            int_ext = "INT/EXT"
+        elif raw_prefix.startswith("INT"):
+            int_ext = "INT"
+        elif raw_prefix.startswith("EXT"):
+            int_ext = "EXT"
+        elif raw_prefix.startswith("EST"):
+            int_ext = "EXT"  # establishing shot heading — conventionally exterior-style
+        elif raw_prefix in ("IE", "I/E"):
+            int_ext = "INT/EXT"
+        remainder = text[match.end():].strip()
+
+    dash_parts = re.split(r'\s+[-–—]\s+', remainder)
+    if len(dash_parts) > 1:
+        time_of_day = dash_parts[-1].strip()
+        location = " - ".join(p.strip() for p in dash_parts[:-1]).strip()
+    else:
+        time_of_day = None
+        location = remainder.strip()
+
+    return {
+        "int_ext": int_ext,
+        "location": location or None,
+        "time_of_day": time_of_day or None,
+    }
+
+
+def structure_scenes(parsed: Dict[str, Any]) -> List[Dict[str, Any]]:
+    """
+    Stage 1 output shape required by the Storyboard & Cinematography Engine
+    spec: one flat record per scene with the slugline broken down, action
+    lines joined, dialogue collected, and characters_present derived —
+    built purely from parse_screenplay()'s element stream, no LLM call.
+    """
+    structured = []
+    for scene in parsed["scenes"]:
+        heading = scene["heading"]
+        slug = parse_slugline(heading)
+
+        action_parts: List[str] = []
+        raw_dialogue: List[Dict[str, str]] = []
+        characters_present = set()
+
+        for element in scene["elements"]:
+            if element["type"] == "action":
+                action_parts.append(element["content"])
+            elif element["type"] == "dialogue":
+                raw_dialogue.append({
+                    "character": element["character"],
+                    "content": element["content"],
+                })
+                characters_present.add(element["character"])
+
+        structured.append({
+            "scene_number": scene["scene_number"],
+            "heading": heading,
+            "int_ext": slug["int_ext"],
+            "location": slug["location"],
+            "time_of_day": slug["time_of_day"],
+            "raw_action": "\n\n".join(action_parts) if action_parts else None,
+            "raw_dialogue": raw_dialogue,
+            "characters_present": sorted(characters_present),
+        })
+    return structured
+
 
 def parse_screenplay(content: str) -> Dict[str, Any]:
     """

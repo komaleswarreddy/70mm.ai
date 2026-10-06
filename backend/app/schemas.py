@@ -35,6 +35,25 @@ class ShotBase(BaseModel):
     duration: Optional[int] = 0
     status: Optional[str] = "Pending"
     color_label: Optional[str] = None
+    # Stage 4 — automatic shot division
+    shot_type: Optional[str] = None
+    reasoning: Optional[str] = None
+    # Stage 5 — cinematography plan (extra fields)
+    camera_height: Optional[str] = None
+    framing: Optional[str] = None
+    composition_notes: Optional[str] = None
+    lighting_detail: Optional[str] = None  # JSON string
+    contrast: Optional[str] = None
+    depth_of_field: Optional[str] = None
+    perspective_notes: Optional[str] = None
+    # Stage 7 — image generation
+    characters_in_shot: Optional[str] = None
+    board_caption: Optional[str] = None
+    board_dialogue: Optional[str] = None
+    board_crop: Optional[str] = None  # JSON [l, t, r, b]  # JSON string list[str]
+    # Stage 9 — continuity QA
+    needs_review: Optional[int] = 0
+    continuity_score: Optional[int] = None
 
 class ShotCreate(ShotBase):
     pass
@@ -57,6 +76,21 @@ class ShotUpdate(BaseModel):
     duration: Optional[int] = None
     status: Optional[str] = None
     color_label: Optional[str] = None
+    shot_type: Optional[str] = None
+    reasoning: Optional[str] = None
+    camera_height: Optional[str] = None
+    framing: Optional[str] = None
+    composition_notes: Optional[str] = None
+    lighting_detail: Optional[str] = None
+    contrast: Optional[str] = None
+    depth_of_field: Optional[str] = None
+    perspective_notes: Optional[str] = None
+    characters_in_shot: Optional[str] = None
+    board_caption: Optional[str] = None
+    board_dialogue: Optional[str] = None
+    board_crop: Optional[str] = None  # JSON [l, t, r, b]
+    needs_review: Optional[int] = None
+    continuity_score: Optional[int] = None
 
 class ShotResponse(ShotBase):
     id: str
@@ -97,11 +131,38 @@ class SceneUpdate(BaseModel):
     raw_content: Optional[str] = None
     parser_meta: Optional[str] = None
     order: Optional[int] = None
+    # Stage 1 fields — editable in case the deterministic parse misreads an
+    # unusually formatted slugline and a human needs to correct it.
+    int_ext: Optional[str] = None
+    location: Optional[str] = None
+    time_of_day: Optional[str] = None
+    raw_action: Optional[str] = None
+    raw_dialogue: Optional[str] = None            # JSON string
+    characters_present: Optional[str] = None      # JSON string
+    # Stage 3 fields
+    action_summary: Optional[str] = None
+    emotion: Optional[str] = None
+    conflict: Optional[str] = None
+    key_objects: Optional[str] = None             # JSON string
+    visual_emphasis: Optional[str] = None
+    continuity_notes: Optional[str] = None        # JSON string
 
 class SceneResponse(SceneBase):
     id: str
     project_id: str
     created_at: datetime
+    int_ext: Optional[str] = None
+    location: Optional[str] = None
+    time_of_day: Optional[str] = None
+    raw_action: Optional[str] = None
+    raw_dialogue: Optional[str] = None
+    characters_present: Optional[str] = None
+    action_summary: Optional[str] = None
+    emotion: Optional[str] = None
+    conflict: Optional[str] = None
+    key_objects: Optional[str] = None
+    visual_emphasis: Optional[str] = None
+    continuity_notes: Optional[str] = None
     action_blocks: List[ActionBlockResponse] = []
     dialogues: List[DialogueResponse] = []
     shots: List[ShotResponse] = []
@@ -119,6 +180,7 @@ class CharacterBase(BaseModel):
     backstory: Optional[str] = None
     reference_image_url: Optional[str] = None
     relationships: Optional[str] = None # JSON string: {"character_id": "type"}
+    wardrobe: Optional[str] = None # JSON string: {"default": str, "by_scene": {"<scene_number>": str}}
 
 class CharacterCreate(CharacterBase):
     pass
@@ -135,10 +197,19 @@ class CharacterUpdate(BaseModel):
     backstory: Optional[str] = None
     reference_image_url: Optional[str] = None
     relationships: Optional[str] = None
+    wardrobe: Optional[str] = None
+    reference_image_paths: Optional[str] = None  # JSON string list
+    embedding_vector: Optional[str] = None        # JSON string list[float]
+    locked_seed: Optional[int] = None
+    is_locked: Optional[int] = None
 
 class CharacterResponse(CharacterBase):
     id: str
     project_id: str
+    reference_image_paths: Optional[str] = None
+    embedding_vector: Optional[str] = None
+    locked_seed: Optional[int] = None
+    is_locked: Optional[int] = 0
     model_config = ConfigDict(from_attributes=True)
 
 class DirectorMuseHistoryResponse(BaseModel):
@@ -162,6 +233,7 @@ class ProjectBase(BaseModel):
     themes: Optional[str] = None # JSON String
     conflicts: Optional[str] = None # JSON String
     endings: Optional[str] = None # JSON String
+    period: Optional[str] = None  # e.g. "India, 1965" -- stated in every image prompt
     is_deleted: Optional[int] = 0
 
 class ProjectCreate(ProjectBase):
@@ -177,15 +249,45 @@ class ProjectUpdate(BaseModel):
     themes: Optional[str] = None
     conflicts: Optional[str] = None
     endings: Optional[str] = None
+    period: Optional[str] = None
+    screenplay_structure: Optional[str] = None    # JSON string — Stage 2 Acts/Sequences/Beats
+    board_legend_settings: Optional[str] = None   # JSON string — Stage 8 footer legend defaults
 
 
 class ProjectResponse(ProjectBase):
     id: str
     created_at: datetime
     updated_at: datetime
+    screenplay_structure: Optional[str] = None
+    board_legend_settings: Optional[str] = None
     scenes: List[SceneResponse] = []
     characters: List[CharacterResponse] = []
     model_config = ConfigDict(from_attributes=True)
+
+class BoardBase(BaseModel):
+    board_number: int
+    scene_range_start: int
+    scene_range_end: int
+    title: Optional[str] = None
+    length_label: Optional[str] = None
+    page_range_label: Optional[str] = None
+    output_image_path: Optional[str] = None
+    output_pdf_path: Optional[str] = None
+
+class BoardResponse(BoardBase):
+    id: str
+    project_id: str
+    created_at: datetime
+    updated_at: datetime
+    model_config = ConfigDict(from_attributes=True)
+
+class ContinuityCheckResponse(BaseModel):
+    shot_id: str
+    needs_review: bool
+    flags: List[str]
+    identity_score: Optional[float] = None
+    color_distance: Optional[float] = None
+    regenerated: bool = False
 
 class ReorderRequest(BaseModel):
     ids: List[str]
@@ -199,6 +301,9 @@ class SceneFormulateInput(BaseModel):
 class DirectorMuseInput(BaseModel):
     action_line: str
     director_style: Optional[str] = "Standard"
+
+class ShotEditInput(BaseModel):
+    instruction: str
 
 class ShotBatchUpdate(BaseModel):
     ids: List[str]

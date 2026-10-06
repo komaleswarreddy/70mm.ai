@@ -16,3 +16,10 @@ python-multipart==0.0.9
 firebase-admin==6.5.0
 redis==5.0.6
 aiofiles==24.1.0
+asyncpg==0.29.0
+celery==5.4.0
+pypdf==4.2.0
+python-docx==1.1.2
+numpy==1.26.4
+open_clip_torch==3.3.0
+opencv-python-headless==4.10.0.84

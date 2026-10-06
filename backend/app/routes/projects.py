@@ -1,4 +1,6 @@
+import asyncio
 import json
+import os
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, status
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -7,10 +9,12 @@ from sqlalchemy.orm import selectinload
 from typing import List
 from io import BytesIO
 from app.database import get_db
-from app import models, schemas
-from app.parser import parse_screenplay
+from app import models, schemas, ai_service
+from app.parser import parse_screenplay, structure_scenes
 from app.export_service import generate_project_pdf, generate_project_csv
 from app.auth_service import get_current_user
+from app import board_service
+from app.shot_prompt_builder import resolve_wardrobe
 
 router = APIRouter(prefix="/projects", tags=["projects"])
 
@@ -256,7 +260,8 @@ async def parse_script(id: str, file: UploadFile = File(...), db: AsyncSession =
         raise HTTPException(status_code=400, detail=f"Failed to process file: {str(e)}")
             
     parsed = parse_screenplay(content)
-    
+    structured_scenes = {s["scene_number"]: s for s in structure_scenes(parsed)}
+
     # Cascade delete old scenes & characters
     old_scenes = await db.execute(select(models.Scene).filter(models.Scene.project_id == id))
     for scene in old_scenes.scalars().all():
@@ -277,12 +282,19 @@ async def parse_script(id: str, file: UploadFile = File(...), db: AsyncSession =
         
     # Insert scenes
     for s_idx, scene_data in enumerate(parsed["scenes"]):
+        stage1 = structured_scenes.get(scene_data["scene_number"], {})
         db_scene = models.Scene(
             project_id=id,
             scene_number=scene_data["scene_number"],
             heading=scene_data["heading"],
             order=s_idx,
-            raw_content=""
+            raw_content="",
+            int_ext=stage1.get("int_ext"),
+            location=stage1.get("location"),
+            time_of_day=stage1.get("time_of_day"),
+            raw_action=stage1.get("raw_action"),
+            raw_dialogue=json.dumps(stage1.get("raw_dialogue", [])),
+            characters_present=json.dumps(stage1.get("characters_present", [])),
         )
         db.add(db_scene)
         await db.flush()
@@ -328,6 +340,150 @@ async def parse_script(id: str, file: UploadFile = File(...), db: AsyncSession =
         .filter(models.Project.id == id, models.Project.user_id == current_user["uid"])
     )
     return result.scalar_one()
+
+@router.post("/{id}/structure", response_model=schemas.ProjectResponse)
+async def structure_project(id: str, db: AsyncSession = Depends(get_db), current_user: dict = Depends(get_current_user)):
+    """Stage 2: Acts -> Sequences -> Beats. Requires Stage 1 (parse) to have
+    run first — operates on the already-parsed scene list, never raw text."""
+    result = await db.execute(
+        select(models.Project)
+        .options(selectinload(models.Project.scenes))
+        .filter(models.Project.id == id, models.Project.user_id == current_user["uid"], models.Project.is_deleted == 0)
+    )
+    project = result.scalar_one_or_none()
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+    if not project.scenes:
+        raise HTTPException(status_code=400, detail="No scenes found — run Stage 1 (/parse) on this project first.")
+
+    scenes_payload = [
+        {
+            "scene_number": s.scene_number,
+            "heading": s.heading,
+            "raw_action": s.raw_action,
+            "characters_present": json.loads(s.characters_present) if s.characters_present else [],
+        }
+        for s in project.scenes
+    ]
+
+    structure = await ai_service.structure_screenplay(scenes_payload)
+    project.screenplay_structure = json.dumps(structure)
+    await db.commit()
+
+    result = await db.execute(
+        select(models.Project)
+        .options(
+            selectinload(models.Project.characters),
+            selectinload(models.Project.scenes).selectinload(models.Scene.action_blocks),
+            selectinload(models.Project.scenes).selectinload(models.Scene.dialogues),
+            selectinload(models.Project.scenes).selectinload(models.Scene.shots).selectinload(models.Shot.storyboard_frames)
+        )
+        .filter(models.Project.id == id, models.Project.user_id == current_user["uid"])
+    )
+    return result.scalar_one()
+
+@router.post("/{id}/boards/compose", response_model=List[schemas.BoardResponse])
+async def compose_boards(id: str, db: AsyncSession = Depends(get_db), current_user: dict = Depends(get_current_user)):
+    """Stage 8: compose the production board sheets (PNG 7200 px + vector PDF
+    with full-resolution shots) from the Stage 7 images already generated.
+    Board text comes from Project.board_legend_settings; missing shot captions
+    are drafted once with the LLM and saved so they stay stable and editable.
+    Replaces any previously composed boards."""
+    result = await db.execute(
+        select(models.Project)
+        .options(selectinload(models.Project.scenes).selectinload(models.Scene.shots).selectinload(models.Shot.storyboard_frames),
+                 selectinload(models.Project.characters))
+        .filter(models.Project.id == id, models.Project.user_id == current_user["uid"], models.Project.is_deleted == 0)
+    )
+    project = result.scalar_one_or_none()
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+    if not project.scenes:
+        raise HTTPException(status_code=400, detail="No scenes found — run Stage 1 (/parse) on this project first.")
+
+    backend_root = board_service.BACKEND_ROOT
+    settings = json.loads(project.board_legend_settings) if project.board_legend_settings else {}
+    if not isinstance(settings, dict):
+        settings = {}
+
+    scenes = sorted(project.scenes, key=lambda s: s.scene_number)
+    # Draft captions for shots that have none, once, and persist them.
+    for scene in scenes:
+        missing = [s for s in scene.shots if not (s.board_caption or "").strip()]
+        if not missing:
+            continue
+        drafts = await ai_service.draft_board_captions(
+            scene.heading or "", scene.raw_content or scene.raw_action or "",
+            [{"shot_number": s.shot_number, "shot_size": s.shot_size, "reasoning": s.reasoning, "notes": s.notes} for s in missing],
+        )
+        for s in missing:
+            draft = drafts.get(s.shot_number) or {}
+            s.board_caption = draft.get("caption") or (s.reasoning or "").split(".")[0][:90] or None
+            if draft.get("dialogue") and not s.board_dialogue:
+                s.board_dialogue = draft["dialogue"]
+
+    project_payload = {
+        "title": project.title, "period": project.period,
+        "characters": [], "scenes": [],
+    }
+    for c in sorted(project.characters, key=lambda c: c.name):
+        refs = [p for p in (json.loads(c.reference_image_paths) if c.reference_image_paths else [])]
+        disk = [os.path.join(backend_root, p.lstrip("/")) for p in refs]
+        disk = [p for p in disk if os.path.exists(p)]
+        if c.is_locked and disk:
+            project_payload["characters"].append({"name": c.name, "ref_paths": disk,
+                                                  "note": resolve_wardrobe(c.wardrobe, None)[:48]})
+    for scene in scenes:
+        shots_payload = []
+        for shot in sorted(scene.shots, key=lambda s: (s.order or 0, s.shot_number)):
+            frame = next((f for f in shot.storyboard_frames if f.status == "completed" and f.image_url), None)
+            image_path = os.path.join(backend_root, frame.image_url.lstrip("/")) if frame else None
+            try:
+                crop = json.loads(shot.board_crop) if shot.board_crop else None
+            except ValueError:
+                crop = None
+            shots_payload.append({
+                "shot_number": shot.shot_number, "shot_size": shot.shot_size or shot.shot_type, "lens": shot.lens,
+                "movement": shot.movement, "lighting": shot.lighting, "emotion": shot.emotion,
+                "color_palette": shot.color_palette, "caption": shot.board_caption, "dialogue": shot.board_dialogue,
+                "crop": crop, "image_path": image_path,
+            })
+        project_payload["scenes"].append({"scene_number": scene.scene_number, "heading": scene.heading, "shots": shots_payload})
+
+    # Rendering is CPU-bound (~10-15 s for a full sheet); keep the event loop free.
+    # Unchanged inputs return the previous files instantly (fingerprint cache).
+    await db.commit()  # persist any newly drafted captions before the long step
+    rendered, cached = await asyncio.to_thread(
+        board_service.compose_project_boards, project_payload, settings, id
+    )
+
+    existing = (await db.execute(
+        select(models.Board).filter(models.Board.project_id == id).order_by(models.Board.board_number)
+    )).scalars().all()
+    if cached and len(existing) == len(rendered) and all(
+            b.output_pdf_path == f"/static/boards/{os.path.basename(r['pdf_path'])}" for b, r in zip(existing, rendered)):
+        return existing   # same files, same rows -> browser caches stay valid
+    for old_board in existing:
+        await db.delete(old_board)
+    await db.flush()
+
+    new_boards = []
+    for b in rendered:
+        start, end = b["scene_range"]
+        db_board = models.Board(
+            project_id=id, board_number=b["board_number"], scene_range_start=start, scene_range_end=end,
+            title=f"Scenes {start}-{end}" if start != end else f"Scene {start}",
+            length_label=f"{b['shot_count']} shots", page_range_label=f"{b['board_number']} OF {b['total']}",
+            output_image_path=f"/static/boards/{os.path.basename(b['png_path'])}",
+            output_pdf_path=f"/static/boards/{os.path.basename(b['pdf_path'])}",
+        )
+        db.add(db_board)
+        new_boards.append(db_board)
+
+    await db.commit()
+    for b in new_boards:
+        await db.refresh(b)
+    return new_boards
 
 @router.get("/{id}/export/pdf")
 async def export_pdf(id: str, db: AsyncSession = Depends(get_db), current_user: dict = Depends(get_current_user)):

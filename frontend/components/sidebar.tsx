@@ -1,8 +1,8 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Sparkles, Users, BookOpen, FileUp, ChevronDown, ChevronRight } from 'lucide-react';
-import { Project } from '../lib/api';
+import { Sparkles, Users, BookOpen, FileUp, ChevronDown, ChevronRight, Layers } from 'lucide-react';
+import { Project, Character } from '../lib/api';
 import { StoryOutlineTabs } from './story-engine/story-outline-tabs';
 import { CharacterBible } from './character-bible/character-bible';
 import { RelationshipGraph } from './relationship-graph/relationship-graph';
@@ -14,15 +14,21 @@ interface SidebarProps {
   isGeneratingStory: boolean;
   isUploadingScript: boolean;
   onRefreshProject?: () => void;
+  onStructureProject?: () => Promise<void>;
+  isStructuring?: boolean;
+  onLockCharacterReference?: (characterId: string, files?: File[]) => Promise<Character | void>;
 }
 
-export function Sidebar({ 
-  project, 
-  onGenerateStory, 
-  onUploadScript, 
-  isGeneratingStory, 
+export function Sidebar({
+  project,
+  onGenerateStory,
+  onUploadScript,
+  isGeneratingStory,
   isUploadingScript,
-  onRefreshProject = () => {}
+  onRefreshProject = () => {},
+  onStructureProject,
+  isStructuring = false,
+  onLockCharacterReference,
 }: SidebarProps) {
 
   const [idea, setIdea] = useState('');
@@ -61,17 +67,56 @@ export function Sidebar({
         <label className="flex flex-col items-center justify-center border border-dashed border-border hover:border-primary/50 bg-[#0d0d15]/50 rounded-lg p-6 cursor-pointer group transition-all duration-150">
           <FileUp size={24} className="text-gray-400 group-hover:text-primary group-hover:scale-105 transition-all mb-2" />
           <span className="text-xs font-semibold text-gray-300">
-            {isUploadingScript ? "Parsing screenplay..." : "Upload Fountain / TXT"}
+            {isUploadingScript ? "Parsing screenplay..." : "Upload Fountain / TXT / FDX"}
           </span>
           <span className="text-[10px] text-gray-500 mt-1">Single source of truth</span>
-          <input 
-            type="file" 
-            accept=".txt,.fountain" 
-            onChange={handleFileChange} 
-            disabled={isUploadingScript} 
-            className="hidden" 
+          <input
+            type="file"
+            accept=".txt,.fountain,.fdx"
+            onChange={handleFileChange}
+            disabled={isUploadingScript}
+            className="hidden"
           />
         </label>
+
+        {onStructureProject && (project?.scenes?.length || 0) > 0 && (
+          <button
+            onClick={onStructureProject}
+            disabled={isStructuring}
+            title="Stage 2: groups the parsed scenes into acts/sequences/beats"
+            className="w-full mt-2 flex items-center justify-center space-x-1.5 py-2 bg-secondary hover:bg-muted disabled:bg-gray-800 disabled:text-gray-600 disabled:cursor-not-allowed border border-border text-gray-300 hover:text-white font-bold text-xs rounded transition-colors cursor-pointer"
+          >
+            <Layers size={13} className={isStructuring ? "animate-pulse" : ""} />
+            <span>{isStructuring ? "Structuring acts..." : "Structure Screenplay"}</span>
+          </button>
+        )}
+
+        {(() => {
+          const structure = parseJSON(project?.screenplay_structure, null);
+          if (!structure?.acts?.length) return null;
+          return (
+            <div className="mt-3 space-y-2 max-h-56 overflow-y-auto pr-1">
+              {structure.acts.map((act: any, actIdx: number) => (
+                <div key={actIdx} className="bg-secondary/20 border border-border/50 rounded p-2">
+                  <span className="text-[10px] font-bold text-primary">
+                    Act {act.act_number}{act.title ? `: ${act.title}` : ''}
+                  </span>
+                  {(act.sequences || []).map((seq: any, seqIdx: number) => (
+                    <div key={seqIdx} className="mt-1.5 pl-2 border-l border-border/60 space-y-1">
+                      <p className="text-[9px] font-semibold text-gray-300">{seq.sequence_title}</p>
+                      {(seq.beats || []).map((beat: any, beatIdx: number) => (
+                        <p key={beatIdx} className="text-[9px] text-gray-500 leading-relaxed">
+                          <span className="text-gray-400">{beat.beat_title}</span>
+                          {beat.scene_numbers ? ` (Sc. ${beat.scene_numbers.join(', ')})` : ''}
+                        </p>
+                      ))}
+                    </div>
+                  ))}
+                </div>
+              ))}
+            </div>
+          );
+        })()}
       </div>
 
       {/* Accordion Panels */}
@@ -161,11 +206,12 @@ export function Sidebar({
 
         {expandedSection === 'characters' && (
           <div className="p-4 pt-0">
-            <CharacterBible 
-              projectId={project?.id || ''} 
-              characters={project?.characters || []} 
+            <CharacterBible
+              projectId={project?.id || ''}
+              characters={project?.characters || []}
               allCharacters={project?.characters || []}
               onRefresh={onRefreshProject}
+              onLockReference={onLockCharacterReference}
             />
           </div>
         )}

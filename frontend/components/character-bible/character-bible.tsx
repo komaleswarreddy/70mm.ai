@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { Character, api } from '../../lib/api';
-import { Users, Plus, Edit, Trash2, Shield, Eye, Settings, Image as ImageIcon } from 'lucide-react';
+import { Users, Plus, Edit, Trash2, Shield, Eye, Settings, Image as ImageIcon, Lock, LockOpen, Wand2 } from 'lucide-react';
 import { RelationshipGraph } from '../relationship-graph/relationship-graph';
 
 
@@ -11,9 +11,10 @@ interface CharacterBibleProps {
   characters?: Character[];
   allCharacters?: Character[]; // for relationship binding
   onRefresh: () => void;
+  onLockReference?: (characterId: string, files?: File[]) => Promise<Character | void>;
 }
 
-export function CharacterBible({ projectId, characters = [], allCharacters = [], onRefresh }: CharacterBibleProps) {
+export function CharacterBible({ projectId, characters = [], allCharacters = [], onRefresh, onLockReference }: CharacterBibleProps) {
   const [editingChar, setEditingChar] = useState<Character | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [newName, setNewName] = useState('');
@@ -33,6 +34,11 @@ export function CharacterBible({ projectId, characters = [], allCharacters = [],
 
   // Relationship bindings: key = character_id, value = type
   const [charRels, setCharRels] = useState<Record<string, string>>({});
+
+  // Stage 6: reference-lock state
+  const [lockFiles, setLockFiles] = useState<File[]>([]);
+  const [isLocking, setIsLocking] = useState(false);
+  const [lockError, setLockError] = useState<string | null>(null);
 
   const parseJSON = (str?: string, fallback: any = []) => {
     if (!str) return fallback;
@@ -56,7 +62,30 @@ export function CharacterBible({ projectId, characters = [], allCharacters = [],
     setCharImage(char.reference_image_url || '');
     setCharTraits(parseJSON(char.traits, []));
     setCharRels(parseJSON(char.relationships, {}));
+    setLockFiles([]);
+    setLockError(null);
     setIsModalOpen(true);
+  };
+
+  const handleLockFilesChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files) {
+      setLockFiles(Array.from(e.target.files).slice(0, 4));
+    }
+  };
+
+  const handleLockClick = async () => {
+    if (!onLockReference || !editingChar) return;
+    setIsLocking(true);
+    setLockError(null);
+    try {
+      const updated = await onLockReference(editingChar.id, lockFiles.length > 0 ? lockFiles : undefined);
+      if (updated) setEditingChar(updated);
+      setLockFiles([]);
+    } catch (e: any) {
+      setLockError(e.message || 'Failed to lock character reference.');
+    } finally {
+      setIsLocking(false);
+    }
   };
 
   const handleAddCharacter = async () => {
@@ -166,6 +195,11 @@ export function CharacterBible({ projectId, characters = [], allCharacters = [],
                   <span className="text-xs font-bold text-gray-200 group-hover:text-purple-400 transition-colors flex items-center space-x-1">
                     <span>{char.name}</span>
                     {char.age && <span className="text-[9px] text-gray-500">({char.age})</span>}
+                    {char.is_locked ? (
+                      <span title="Reference locked"><Lock size={9} className="text-emerald-400" /></span>
+                    ) : (
+                      <span title="Not locked -- shots with this character will fail to generate"><LockOpen size={9} className="text-gray-600" /></span>
+                    )}
                   </span>
                   <div className="flex items-center space-x-1 opacity-0 group-hover:opacity-100 transition-opacity mr-8">
                     <button
@@ -284,6 +318,68 @@ export function CharacterBible({ projectId, characters = [], allCharacters = [],
                   />
                 </div>
               </div>
+
+              {/* Stage 6: Character Consistency Lock */}
+              {onLockReference && (
+                <div className="space-y-3 border border-purple-500/20 bg-purple-950/10 rounded-lg p-3.5">
+                  <div className="flex items-center justify-between">
+                    <label className="text-[9px] font-bold uppercase tracking-wider text-gray-500 flex items-center space-x-1.5">
+                      {editingChar.is_locked ? <Lock size={11} className="text-emerald-400" /> : <LockOpen size={11} className="text-gray-500" />}
+                      <span>Character Consistency Lock (Stage 6)</span>
+                    </label>
+                    {editingChar.is_locked ? (
+                      <span className="text-[8px] font-bold px-1.5 py-0.5 rounded bg-emerald-950 text-emerald-400 border border-emerald-500/30">
+                        LOCKED{editingChar.locked_seed ? ` · seed ${editingChar.locked_seed}` : ''}
+                      </span>
+                    ) : (
+                      <span className="text-[8px] font-bold px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-400">
+                        NOT LOCKED
+                      </span>
+                    )}
+                  </div>
+
+                  <p className="text-[10px] text-gray-500 leading-relaxed">
+                    Locking freezes this character's identity for every shot they appear in. Upload 1-4 reference
+                    photos to use those, or lock with none to auto-generate one and freeze its seed. Re-locking replaces
+                    the current reference set.
+                  </p>
+
+                  {(() => {
+                    const lockedPaths: string[] = parseJSON(editingChar.reference_image_paths, []);
+                    if (lockedPaths.length === 0) return null;
+                    const backendBaseUrl = 'http://localhost:8000';
+                    return (
+                      <div className="flex items-center space-x-2">
+                        {lockedPaths.map((p, idx) => (
+                          <img
+                            key={idx}
+                            src={p.startsWith('http') ? p : `${backendBaseUrl}${p}`}
+                            alt={`Locked reference ${idx + 1}`}
+                            className="w-12 h-12 rounded object-cover border border-emerald-500/30"
+                          />
+                        ))}
+                      </div>
+                    );
+                  })()}
+
+                  <div className="flex items-center space-x-2">
+                    <label className="flex-1 flex items-center justify-center px-2 py-1.5 bg-[#0d0d15] border border-dashed border-gray-700 hover:border-purple-500/50 rounded cursor-pointer text-[10px] text-gray-400 hover:text-gray-200 transition-colors">
+                      <span>{lockFiles.length > 0 ? `${lockFiles.length} photo(s) selected` : 'Choose up to 4 reference photos (optional)'}</span>
+                      <input type="file" accept="image/*" multiple onChange={handleLockFilesChange} className="hidden" />
+                    </label>
+                    <button
+                      type="button"
+                      onClick={handleLockClick}
+                      disabled={isLocking}
+                      className="flex items-center space-x-1 px-3 py-1.5 rounded bg-purple-600 hover:bg-purple-500 disabled:bg-gray-800 disabled:text-gray-600 disabled:cursor-not-allowed text-white font-bold text-[10px] cursor-pointer transition-colors shrink-0"
+                    >
+                      <Wand2 size={11} className={isLocking ? "animate-pulse" : ""} />
+                      <span>{isLocking ? "Locking..." : editingChar.is_locked ? "Re-lock" : "Lock Reference"}</span>
+                    </button>
+                  </div>
+                  {lockError && <p className="text-[10px] text-red-400">{lockError}</p>}
+                </div>
+              )}
 
               {/* Row 2: Description, Backstory */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

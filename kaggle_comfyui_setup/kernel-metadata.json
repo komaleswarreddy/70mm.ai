@@ -1,0 +1,12 @@
+{
+  "id": "krkomaleswarreddy/comfyui-flux-uso-setup",
+  "title": "ComfyUI Flux USO Setup",
+  "code_file": "comfyui_setup.ipynb",
+  "language": "python",
+  "kernel_type": "notebook",
+  "is_private": "true",
+  "enable_gpu": "true",
+  "enable_internet": "true",
+  "machine_shape": "NvidiaTeslaT4",
+  "dataset_sources": ["krkomaleswarreddy/hf-token", "krkomaleswarreddy/kaggle-creds"]
+}

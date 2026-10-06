@@ -35,6 +35,9 @@
 *.ico binary
 *.pdf binary
 *.db binary
+*.onnx binary
+*.tflite binary
+*.task binary
 
 # Firebase service account
 *.json text eol=lf

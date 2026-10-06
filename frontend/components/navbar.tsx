@@ -1,17 +1,34 @@
 'use client';
 
-import React from 'react';
-import { Film, FileText, Download, ChevronRight, LayoutDashboard } from 'lucide-react';
+import React, { useState } from 'react';
+import { Film, FileText, Download, ChevronRight, LayoutDashboard, LayoutGrid } from 'lucide-react';
 import Link from 'next/link';
+import { Board } from '../lib/api';
+import { BoardStudio } from './board-studio';
 
 interface NavbarProps {
   projectTitle?: string;
   projectId?: string;
   onExportPDF?: () => void;
   onExportCSV?: () => void;
+  onComposeBoards?: () => Promise<Board[] | void>;
+  isComposingBoards?: boolean;
 }
 
-export function Navbar({ projectTitle, projectId, onExportPDF, onExportCSV }: NavbarProps) {
+export function Navbar({ projectTitle, projectId, onExportPDF, onExportCSV, onComposeBoards, isComposingBoards }: NavbarProps) {
+  const [composedBoards, setComposedBoards] = useState<Board[] | null>(null);
+
+  const handleComposeClick = async () => {
+    if (!onComposeBoards) return;
+    setComposedBoards(null);
+    try {
+      const boards = await onComposeBoards();
+      setComposedBoards(boards || []);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
   return (
     <nav className="glass border-b border-border h-14 flex items-center justify-between px-6 z-50 sticky top-0">
       <div className="flex items-center space-x-4">
@@ -39,7 +56,29 @@ export function Navbar({ projectTitle, projectId, onExportPDF, onExportCSV }: Na
 
       <div className="flex items-center space-x-3">
         {projectId && (
-          <div className="flex items-center space-x-2">
+          <div className="flex items-center space-x-2 relative">
+            {onComposeBoards && (
+              <button
+                onClick={handleComposeClick}
+                disabled={isComposingBoards}
+                title="Stage 8: composes the production storyboard sheet(s) from the generated shots -- full-quality PDF + 7200 px PNG"
+                className="flex items-center space-x-1.5 px-3 py-1.5 rounded-md text-xs font-semibold bg-secondary hover:bg-muted disabled:opacity-50 text-gray-200 border border-border cursor-pointer transition-colors duration-150"
+              >
+                <LayoutGrid size={13} className={isComposingBoards ? "animate-pulse text-primary" : "text-primary"} />
+                <span>{isComposingBoards ? "Composing..." : "Compose Boards"}</span>
+              </button>
+            )}
+
+            {composedBoards && projectId && onComposeBoards && (
+              <BoardStudio
+                projectId={projectId}
+                boards={composedBoards}
+                isComposing={isComposingBoards}
+                onRecompose={onComposeBoards}
+                onClose={() => setComposedBoards(null)}
+              />
+            )}
+
             {onExportPDF && (
               <button 
                 onClick={onExportPDF}

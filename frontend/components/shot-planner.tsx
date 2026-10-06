@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Plus, Trash, Sparkles, Wand2, ArrowUpDown, X, CheckSquare, Square, Palette, Layers, Clock } from 'lucide-react';
+import { Plus, Trash, Sparkles, Wand2, ArrowUpDown, X, CheckSquare, Square, Palette, Layers, Clock, MessageSquareText, AlertTriangle } from 'lucide-react';
 import { Shot, api } from '../lib/api';
 
 interface ShotPlannerProps {
@@ -11,20 +11,28 @@ interface ShotPlannerProps {
   onUpdateShot: (id: string, updates: Partial<Shot>) => void;
   onDeleteShot: (id: string) => void;
   onTriggerMuse: (shotId: string, notes: string, style?: string) => Promise<any>;
+  onGenerateShotPlan?: (sceneId: string) => Promise<void>;
+  onEditShot?: (shotId: string, instruction: string) => Promise<void>;
 }
 
 type SortField = 'shot_number' | 'shooting_order' | 'duration' | 'shot_size' | 'lens' | 'lighting';
 type SortOrder = 'asc' | 'desc';
 type GroupingField = 'none' | 'location_order' | 'day_night';
 
-export function ShotPlanner({ sceneId, shots, onAddShot, onUpdateShot, onDeleteShot, onTriggerMuse }: ShotPlannerProps) {
+export function ShotPlanner({ sceneId, shots, onAddShot, onUpdateShot, onDeleteShot, onTriggerMuse, onGenerateShotPlan, onEditShot }: ShotPlannerProps) {
   const [editingCell, setEditingCell] = useState<{ id: string; field: keyof Shot } | null>(null);
   const [editValue, setEditValue] = useState('');
   const [filterText, setFilterText] = useState('');
   const [sortField, setSortField] = useState<SortField>('shot_number');
   const [sortOrder, setSortOrder] = useState<SortOrder>('asc');
   const [groupField, setGroupField] = useState<GroupingField>('none');
-  
+  const [isGeneratingPlan, setIsGeneratingPlan] = useState(false);
+
+  // Stage 10: natural-language edit
+  const [nlEditShotId, setNlEditShotId] = useState<string | null>(null);
+  const [nlInstruction, setNlInstruction] = useState('');
+  const [isApplyingEdit, setIsApplyingEdit] = useState(false);
+
   // Selection
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   
@@ -106,6 +114,35 @@ export function ShotPlanner({ sceneId, shots, onAddShot, onUpdateShot, onDeleteS
       setSelectedIds([]);
     } catch (err) {
       console.error(err);
+    }
+  };
+
+  const handleGeneratePlanClick = async () => {
+    if (!sceneId || !onGenerateShotPlan) return;
+    if (shots.length > 0 && !confirm(`This replaces all ${shots.length} existing shot(s) in this scene with a freshly generated plan. Continue?`)) {
+      return;
+    }
+    setIsGeneratingPlan(true);
+    try {
+      await onGenerateShotPlan(sceneId);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsGeneratingPlan(false);
+    }
+  };
+
+  const handleApplyNlEdit = async () => {
+    if (!nlEditShotId || !nlInstruction.trim() || !onEditShot) return;
+    setIsApplyingEdit(true);
+    try {
+      await onEditShot(nlEditShotId, nlInstruction.trim());
+      setNlEditShotId(null);
+      setNlInstruction('');
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsApplyingEdit(false);
     }
   };
 
@@ -230,6 +267,17 @@ export function ShotPlanner({ sceneId, shots, onAddShot, onUpdateShot, onDeleteS
               <Clock size={11} />
               <span>Reel: {formatDuration(totalDuration)}</span>
             </div>
+            {onGenerateShotPlan && (
+              <button
+                onClick={handleGeneratePlanClick}
+                disabled={isGeneratingPlan}
+                title="Stage 4/5: auto-divides this scene into shots with a full cinematography plan (replaces existing shots)"
+                className="flex items-center space-x-1 px-2 py-1 rounded bg-blue-600 text-white font-semibold text-[10px] hover:bg-blue-500 disabled:bg-gray-800 disabled:text-gray-600 disabled:cursor-not-allowed transition-all cursor-pointer"
+              >
+                <Layers size={11} className={isGeneratingPlan ? "animate-pulse" : ""} />
+                <span>{isGeneratingPlan ? "Generating plan..." : "Generate Shot Plan"}</span>
+              </button>
+            )}
             <button
               onClick={onAddShot}
               className="flex items-center space-x-1 px-2 py-1 rounded bg-primary text-black font-semibold text-[10px] hover:bg-primary/90 transition-all cursor-pointer"
@@ -437,6 +485,9 @@ export function ShotPlanner({ sceneId, shots, onAddShot, onUpdateShot, onDeleteS
         <td className="p-2 border-r border-border/40 text-center font-bold text-primary flex items-center justify-center space-x-1.5 min-h-[2.2rem]">
           {shot.color_label && (
             <div style={{ backgroundColor: shot.color_label }} className="w-1.5 h-1.5 rounded-full shrink-0" />
+          )}
+          {!!shot.needs_review && (
+            <span title="Stage 9: flagged for continuity review" className="shrink-0"><AlertTriangle size={9} className="text-amber-500" /></span>
           )}
           {editingCell?.id === shot.id && editingCell?.field === 'shot_number' ? (
             <input
@@ -653,22 +704,60 @@ export function ShotPlanner({ sceneId, shots, onAddShot, onUpdateShot, onDeleteS
         </td>
 
         {/* Actions */}
-        <td className="p-2 text-center flex items-center justify-center space-x-1.5 opacity-40 group-hover:opacity-100 transition-opacity">
-          <button
-            onClick={() => handleMuseClick(shot)}
-            disabled={isMusing !== null}
-            title="Muse AI"
-            className="p-1 rounded text-yellow-500 hover:bg-yellow-500/10 cursor-pointer"
-          >
-            <Sparkles size={11} className={isMusing === shot.id ? "animate-spin" : ""} />
-          </button>
-          <button
-            onClick={() => onDeleteShot(shot.id)}
-            title="Delete"
-            className="p-1 rounded text-red-500 hover:bg-red-500/10 cursor-pointer"
-          >
-            <Trash size={11} />
-          </button>
+        <td className="p-2 text-center relative">
+          <div className="flex items-center justify-center space-x-1.5 opacity-40 group-hover:opacity-100 transition-opacity">
+            <button
+              onClick={() => handleMuseClick(shot)}
+              disabled={isMusing !== null}
+              title="Muse AI"
+              className="p-1 rounded text-yellow-500 hover:bg-yellow-500/10 cursor-pointer"
+            >
+              <Sparkles size={11} className={isMusing === shot.id ? "animate-spin" : ""} />
+            </button>
+            {onEditShot && (
+              <button
+                onClick={() => { setNlEditShotId(shot.id); setNlInstruction(''); }}
+                title="Stage 10: edit this shot in plain English (e.g. 'make this a low-angle shot')"
+                className="p-1 rounded text-blue-400 hover:bg-blue-500/10 cursor-pointer"
+              >
+                <MessageSquareText size={11} />
+              </button>
+            )}
+            <button
+              onClick={() => onDeleteShot(shot.id)}
+              title="Delete"
+              className="p-1 rounded text-red-500 hover:bg-red-500/10 cursor-pointer"
+            >
+              <Trash size={11} />
+            </button>
+          </div>
+
+          {nlEditShotId === shot.id && (
+            <div className="absolute right-0 top-full mt-1 z-50 w-64 bg-[#0c0c16] border border-blue-500/30 rounded-lg shadow-2xl p-2.5 text-left space-y-2">
+              <textarea
+                value={nlInstruction}
+                onChange={(e) => setNlInstruction(e.target.value)}
+                placeholder="e.g. make this a low-angle shot, use a 50mm lens..."
+                autoFocus
+                className="w-full h-16 bg-input border border-border rounded p-1.5 text-[10px] text-gray-200 focus:outline-none focus:border-blue-500 placeholder-gray-600 resize-none"
+              />
+              <div className="flex justify-end space-x-1.5">
+                <button
+                  onClick={() => setNlEditShotId(null)}
+                  className="px-2 py-1 rounded bg-secondary text-gray-400 hover:text-white text-[9px] font-bold cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleApplyNlEdit}
+                  disabled={isApplyingEdit || !nlInstruction.trim()}
+                  className="px-2 py-1 rounded bg-blue-600 hover:bg-blue-500 disabled:bg-gray-800 disabled:text-gray-600 disabled:cursor-not-allowed text-white text-[9px] font-bold cursor-pointer"
+                >
+                  {isApplyingEdit ? "Applying + regenerating..." : "Apply"}
+                </button>
+              </div>
+            </div>
+          )}
         </td>
       </tr>
     );

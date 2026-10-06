@@ -1,0 +1,318 @@
+Title: STRESS TEST FEATURE
+Author: Pipeline QA
+
+INT. OFFICE LOBBY - EVENING
+
+DEV sits alone, phone pressed to their ear.
+
+DEV
+(into phone)
+Can you hear me?
+
+RAHUL (O.S.)
+(distant, crackling)
+Barely. Say that again.
+
+INT. ROOFTOP CAFE - NIGHT
+
+RAHUL, MEERA, and SURESH gather around a small table, voices overlapping.
+
+RAHUL
+We don't have much time.
+
+MEERA
+Then let's not waste it arguing.
+
+EXT. TRAIN STATION - MORNING
+
+MEERA and SURESH stand inches apart, neither backing down.
+
+MEERA
+(sharp)
+You promised me this wouldn't happen again.
+
+SURESH
+(quiet, guilty)
+I know.
+
+INT. RIVERSIDE PARK - DAY
+
+SURESH's bike weaves through traffic, engine roaring past the riverside park.
+
+SURESH
+(shouting over the wind)
+Hold on!
+
+INT. OLD BOOKSHOP - EVENING
+
+KAVYA sits alone, tracing a finger along the edge of the table. The silence stretches.
+
+EXT. COLLEGE CANTEEN - NIGHT
+
+ANIKA arrives at the college canteen, scanning the room before stepping inside.
+
+ANIKA
+(to herself)
+Finally.
+
+INT. HOSPITAL WARD - MORNING
+
+DEV sits alone, phone pressed to their ear.
+
+DEV
+(into phone)
+Can you hear me?
+
+RAHUL (O.S.)
+(distant, crackling)
+Barely. Say that again.
+
+INT. WEDDING HALL - DAY
+
+RAHUL, MEERA, and SURESH gather around a small table, voices overlapping.
+
+RAHUL
+We don't have much time.
+
+MEERA
+Then let's not waste it arguing.
+
+EXT. BEACH SHACK - EVENING
+
+MEERA and SURESH stand inches apart, neither backing down.
+
+MEERA
+(sharp)
+You promised me this wouldn't happen again.
+
+SURESH
+(quiet, guilty)
+I know.
+
+INT. CITY APARTMENT - NIGHT
+
+SURESH's bike weaves through traffic, engine roaring past the city apartment.
+
+SURESH
+(shouting over the wind)
+Hold on!
+
+INT. OFFICE LOBBY - MORNING
+
+KAVYA sits alone, tracing a finger along the edge of the table. The silence stretches.
+
+EXT. ROOFTOP CAFE - DAY
+
+ANIKA arrives at the rooftop cafe, scanning the room before stepping inside.
+
+ANIKA
+(to herself)
+Finally.
+
+INT. TRAIN STATION - EVENING
+
+DEV sits alone, phone pressed to their ear.
+
+DEV
+(into phone)
+Can you hear me?
+
+RAHUL (O.S.)
+(distant, crackling)
+Barely. Say that again.
+
+INT. RIVERSIDE PARK - NIGHT
+
+RAHUL, MEERA, and SURESH gather around a small table, voices overlapping.
+
+RAHUL
+We don't have much time.
+
+MEERA
+Then let's not waste it arguing.
+
+EXT. OLD BOOKSHOP - MORNING
+
+MEERA and SURESH stand inches apart, neither backing down.
+
+MEERA
+(sharp)
+You promised me this wouldn't happen again.
+
+SURESH
+(quiet, guilty)
+I know.
+
+INT. COLLEGE CANTEEN - DAY
+
+SURESH's bike weaves through traffic, engine roaring past the college canteen.
+
+SURESH
+(shouting over the wind)
+Hold on!
+
+INT. HOSPITAL WARD - EVENING
+
+KAVYA sits alone, tracing a finger along the edge of the table. The silence stretches.
+
+EXT. WEDDING HALL - NIGHT
+
+ANIKA arrives at the wedding hall, scanning the room before stepping inside.
+
+ANIKA
+(to herself)
+Finally.
+
+INT. BEACH SHACK - MORNING
+
+DEV sits alone, phone pressed to their ear.
+
+DEV
+(into phone)
+Can you hear me?
+
+RAHUL (O.S.)
+(distant, crackling)
+Barely. Say that again.
+
+INT. CITY APARTMENT - DAY
+
+RAHUL, MEERA, and SURESH gather around a small table, voices overlapping.
+
+RAHUL
+We don't have much time.
+
+MEERA
+Then let's not waste it arguing.
+
+EXT. OFFICE LOBBY - EVENING
+
+MEERA and SURESH stand inches apart, neither backing down.
+
+MEERA
+(sharp)
+You promised me this wouldn't happen again.
+
+SURESH
+(quiet, guilty)
+I know.
+
+INT. ROOFTOP CAFE - NIGHT
+
+SURESH's bike weaves through traffic, engine roaring past the rooftop cafe.
+
+SURESH
+(shouting over the wind)
+Hold on!
+
+INT. TRAIN STATION - MORNING
+
+KAVYA sits alone, tracing a finger along the edge of the table. The silence stretches.
+
+EXT. RIVERSIDE PARK - DAY
+
+ANIKA arrives at the riverside park, scanning the room before stepping inside.
+
+ANIKA
+(to herself)
+Finally.
+
+INT. OLD BOOKSHOP - EVENING
+
+DEV sits alone, phone pressed to their ear.
+
+DEV
+(into phone)
+Can you hear me?
+
+RAHUL (O.S.)
+(distant, crackling)
+Barely. Say that again.
+
+INT. COLLEGE CANTEEN - NIGHT
+
+RAHUL, MEERA, and SURESH gather around a small table, voices overlapping.
+
+RAHUL
+We don't have much time.
+
+MEERA
+Then let's not waste it arguing.
+
+EXT. HOSPITAL WARD - MORNING
+
+MEERA and SURESH stand inches apart, neither backing down.
+
+MEERA
+(sharp)
+You promised me this wouldn't happen again.
+
+SURESH
+(quiet, guilty)
+I know.
+
+INT. WEDDING HALL - DAY
+
+SURESH's bike weaves through traffic, engine roaring past the wedding hall.
+
+SURESH
+(shouting over the wind)
+Hold on!
+
+INT. BEACH SHACK - EVENING
+
+KAVYA sits alone, tracing a finger along the edge of the table. The silence stretches.
+
+EXT. CITY APARTMENT - NIGHT
+
+ANIKA arrives at the city apartment, scanning the room before stepping inside.
+
+ANIKA
+(to herself)
+Finally.
+
+INT. OFFICE LOBBY - MORNING
+
+DEV sits alone, phone pressed to their ear.
+
+DEV
+(into phone)
+Can you hear me?
+
+RAHUL (O.S.)
+(distant, crackling)
+Barely. Say that again.
+
+INT. ROOFTOP CAFE - DAY
+
+RAHUL, MEERA, and SURESH gather around a small table, voices overlapping.
+
+RAHUL
+We don't have much time.
+
+MEERA
+Then let's not waste it arguing.
+
+EXT. TRAIN STATION - EVENING
+
+MEERA and SURESH stand inches apart, neither backing down.
+
+MEERA
+(sharp)
+You promised me this wouldn't happen again.
+
+SURESH
+(quiet, guilty)
+I know.
+
+INT. RIVERSIDE PARK - NIGHT
+
+SURESH's bike weaves through traffic, engine roaring past the riverside park.
+
+SURESH
+(shouting over the wind)
+Hold on!
+
+INT. OLD BOOKSHOP - MORNING
+
+KAVYA sits alone, tracing a finger along the edge of the table. The silence stretches.

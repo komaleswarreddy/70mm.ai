@@ -1,0 +1,11 @@
+{
+  "id": "krkomaleswarreddy/comfyui-flux-uso-model-prep",
+  "title": "ComfyUI Flux USO Model Prep",
+  "code_file": "model_prep.ipynb",
+  "language": "python",
+  "kernel_type": "notebook",
+  "is_private": "true",
+  "enable_gpu": "false",
+  "enable_internet": "true",
+  "dataset_sources": ["krkomaleswarreddy/hf-token", "krkomaleswarreddy/kaggle-creds"]
+}

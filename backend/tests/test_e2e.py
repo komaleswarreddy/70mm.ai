@@ -25,19 +25,22 @@ async def override_get_db():
         finally:
             await session.close()
 
-app.dependency_overrides[get_db] = override_get_db
-
 MOCK_TOKEN = "mock_vasu_token_xyz"
 AUTH_HEADERS = {"Authorization": f"Bearer {MOCK_TOKEN}"}
 
 @pytest_asyncio.fixture(autouse=True)
 async def setup_db():
-    """Create tables before each test, drop after."""
+    """Create tables before each test, drop after. The get_db override is
+    scoped to this fixture too (not module-level) so it can't leak into
+    other test files that share the same `app` singleton and expect the
+    real database engine (e.g. test_api.py, test_production.py)."""
+    app.dependency_overrides[get_db] = override_get_db
     async with test_engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
     yield
     async with test_engine.begin() as conn:
         await conn.run_sync(Base.metadata.drop_all)
+    app.dependency_overrides.pop(get_db, None)
 
 @pytest_asyncio.fixture
 async def client():
@@ -144,6 +147,21 @@ A younger MARCO chases pigeons with his camera. Joy on his face."""
     scenes = scenes_resp.json()
     assert len(scenes) >= 2
     scene_id = scenes[0]["id"]
+
+    # ── STEP 7.5: Lock the character's reference (Stage 6) ───────────────────
+    # /parse replaces characters with whatever the screenplay itself names
+    # (here: "MARCO", the dialogue-cue name — not "MARCO VISCONTI" from step
+    # 3, which parsing supersedes). Stage 6's hard rule blocks image
+    # generation for any named character until it's locked, so lock it here
+    # exactly as a real user of this pipeline would have to.
+    chars_resp = await client.get(f"/api/characters/?project_id={project_id}", headers=AUTH_HEADERS)
+    assert chars_resp.status_code == 200
+    parsed_characters = chars_resp.json()
+    assert len(parsed_characters) >= 1
+    marco = next(c for c in parsed_characters if c["name"].upper() == "MARCO")
+    lock_resp = await client.post(f"/api/characters/{marco['id']}/lock-reference", headers=AUTH_HEADERS)
+    assert lock_resp.status_code == 200, f"Lock reference failed: {lock_resp.text}"
+    assert lock_resp.json()["is_locked"] == 1
 
     # ── STEP 8: Create a Shot for the first scene ────────────────────────────
     shot_resp = await client.post(f"/api/shots/?scene_id={scene_id}", json={
@@ -354,3 +372,44 @@ async def test_shot_batch_update(client):
     for shot in updated:
         assert shot["status"] == "Approved"
         assert shot["day_night"] == "Night"
+
+
+@pytest.mark.asyncio
+async def test_compose_boards_drafts_missing_captions_and_returns_png_and_pdf(client, monkeypatch):
+    """Stage 8 end to end through the API the 'Compose Boards' button calls."""
+    import io, json, os
+    from unittest.mock import AsyncMock
+    from app import ai_service, board_service
+
+    proj = (await client.post("/api/projects/", json={"title": "Board Test"}, headers=AUTH_HEADERS)).json()
+    pid = proj["id"]
+    await client.post(f"/api/projects/{pid}/parse", headers=AUTH_HEADERS,
+                      files={"file": ("s.fountain", io.BytesIO(b"INT. LAB - DAY\n\nANNA enters.\n\nANNA\nHello."), "text/plain")})
+    scene_id = (await client.get(f"/api/scenes/?project_id={pid}")).json()[0]["id"]
+    kept = (await client.post(f"/api/shots/?scene_id={scene_id}", json={
+        "shot_number": 1, "shot_size": "Wide Shot", "board_caption": "My own caption."})).json()
+    drafted = (await client.post(f"/api/shots/?scene_id={scene_id}", json={"shot_number": 2, "shot_size": "Close-Up"})).json()
+    await client.put(f"/api/projects/{pid}", headers=AUTH_HEADERS,
+                     json={"board_legend_settings": json.dumps({"tagline": "A test tagline"})})
+
+    draft = AsyncMock(return_value={2: {"caption": "Anna walks in.", "dialogue": "ANNA: “Hello.”"}})
+    monkeypatch.setattr(ai_service, "draft_board_captions", draft)
+    resp = await client.post(f"/api/projects/{pid}/boards/compose", headers=AUTH_HEADERS)
+    assert resp.status_code == 200, resp.text
+    boards = resp.json()
+    try:
+        assert len(boards) == 1 and boards[0]["page_range_label"] == "1 OF 1"
+        for key in ("output_image_path", "output_pdf_path"):
+            assert os.path.exists(os.path.join(board_service.BACKEND_ROOT, boards[0][key].lstrip("/")))
+        # only the shot WITHOUT a caption was sent to the drafter; both are saved
+        sent = draft.await_args.args[2]
+        assert [s["shot_number"] for s in sent] == [2]
+        assert (await client.get(f"/api/shots/{kept['id']}")).json()["board_caption"] == "My own caption."
+        saved = (await client.get(f"/api/shots/{drafted['id']}")).json()
+        assert saved["board_caption"] == "Anna walks in." and saved["board_dialogue"] == "ANNA: “Hello.”"
+    finally:
+        for b in boards:
+            for key in ("output_image_path", "output_pdf_path"):
+                path = os.path.join(board_service.BACKEND_ROOT, b[key].lstrip("/"))
+                if os.path.exists(path):
+                    os.remove(path)

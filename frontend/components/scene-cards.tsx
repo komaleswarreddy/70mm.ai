@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent } from '@dnd-kit/core';
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { Sparkles, X, ChevronRight } from 'lucide-react';
+import { Sparkles, X, ChevronRight, Brain } from 'lucide-react';
 import { Scene } from '../lib/api';
 import { SceneInspector } from './scene-inspector/scene-inspector';
 
@@ -15,17 +15,20 @@ interface SceneCardsProps {
   onSelectScene: (scene: Scene) => void;
   onFormulateScene: (sceneId: string, actionLine: string) => Promise<any>;
   onReorderScenes?: (ids: string[]) => void;
+  onUnderstandScene?: (sceneId: string) => Promise<Scene | void>;
 }
 
 interface SortableSceneItemProps {
   scene: Scene;
   isSelected: boolean;
   isFormulating: boolean;
+  isUnderstanding: boolean;
   onSelectScene: (scene: Scene) => void;
   onFormulateClick: (scene: Scene, e: React.MouseEvent) => void;
+  onUnderstandClick?: (scene: Scene, e: React.MouseEvent) => void;
 }
 
-function SortableSceneItem({ scene, isSelected, isFormulating, onSelectScene, onFormulateClick }: SortableSceneItemProps) {
+function SortableSceneItem({ scene, isSelected, isFormulating, isUnderstanding, onSelectScene, onFormulateClick, onUnderstandClick }: SortableSceneItemProps) {
   const {
     attributes,
     listeners,
@@ -65,20 +68,39 @@ function SortableSceneItem({ scene, isSelected, isFormulating, onSelectScene, on
         <span className="text-[10px] font-bold text-primary tracking-widest uppercase select-none">
           SCENE {scene.scene_number}
         </span>
-        
-        <button
-          onClick={(e) => onFormulateClick(scene, e)}
-          disabled={isFormulating}
-          className="flex items-center space-x-1 px-1.5 py-0.5 rounded text-[9px] font-bold border transition-colors cursor-pointer bg-yellow-600/10 border-yellow-600/30 text-yellow-500 hover:bg-yellow-600 hover:text-black hover:border-yellow-600"
-        >
-          <Sparkles size={10} />
-          <span>{isFormulating ? "Analyzing..." : "Formulate"}</span>
-        </button>
+
+        <div className="flex items-center space-x-1">
+          {onUnderstandClick && (
+            <button
+              onClick={(e) => onUnderstandClick(scene, e)}
+              disabled={isUnderstanding}
+              title="Stage 3: analyze emotion, conflict, key objects, and continuity for this scene"
+              className="flex items-center space-x-1 px-1.5 py-0.5 rounded text-[9px] font-bold border transition-colors cursor-pointer bg-blue-600/10 border-blue-600/30 text-blue-400 hover:bg-blue-600 hover:text-black hover:border-blue-600"
+            >
+              <Brain size={10} />
+              <span>{isUnderstanding ? "Understanding..." : scene.emotion ? "Re-understand" : "Understand"}</span>
+            </button>
+          )}
+          <button
+            onClick={(e) => onFormulateClick(scene, e)}
+            disabled={isFormulating}
+            className="flex items-center space-x-1 px-1.5 py-0.5 rounded text-[9px] font-bold border transition-colors cursor-pointer bg-yellow-600/10 border-yellow-600/30 text-yellow-500 hover:bg-yellow-600 hover:text-black hover:border-yellow-600"
+          >
+            <Sparkles size={10} />
+            <span>{isFormulating ? "Analyzing..." : "Formulate"}</span>
+          </button>
+        </div>
       </div>
 
       <h4 className="text-xs font-bold leading-tight line-clamp-2 screenplay-font mb-3 select-none">
         {scene.heading}
       </h4>
+
+      {scene.emotion && (
+        <p className="text-[9px] text-blue-400/80 italic mb-2 line-clamp-1 select-none">
+          {scene.emotion}{scene.conflict ? ` · ${scene.conflict}` : ''}
+        </p>
+      )}
 
       <div className="flex items-center justify-between text-[9px] font-semibold text-gray-500 select-none">
         <div className="flex items-center space-x-2">
@@ -101,9 +123,10 @@ function SortableSceneItem({ scene, isSelected, isFormulating, onSelectScene, on
   );
 }
 
-export function SceneCards({ scenes, selectedSceneId, onSelectScene, onFormulateScene, onReorderScenes }: SceneCardsProps) {
+export function SceneCards({ scenes, selectedSceneId, onSelectScene, onFormulateScene, onReorderScenes, onUnderstandScene }: SceneCardsProps) {
   const [formulationData, setFormulationData] = useState<any>(null);
   const [isFormulating, setIsFormulating] = useState<string | null>(null);
+  const [isUnderstanding, setIsUnderstanding] = useState<string | null>(null);
   const [showModal, setShowModal] = useState(false);
   const [formulatedSceneHeading, setFormulatedSceneHeading] = useState('');
 
@@ -145,6 +168,19 @@ export function SceneCards({ scenes, selectedSceneId, onSelectScene, onFormulate
     }
   };
 
+  const handleUnderstandClick = async (scene: Scene, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!onUnderstandScene) return;
+    setIsUnderstanding(scene.id);
+    try {
+      await onUnderstandScene(scene.id);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsUnderstanding(null);
+    }
+  };
+
 
   return (
     <div className="w-80 bg-[#07070c] border-r border-border h-full flex flex-col overflow-hidden">
@@ -169,13 +205,15 @@ export function SceneCards({ scenes, selectedSceneId, onSelectScene, onFormulate
             >
               <div className="space-y-2">
                 {scenes.map((scene) => (
-                  <SortableSceneItem 
+                  <SortableSceneItem
                     key={scene.id}
                     scene={scene}
                     isSelected={scene.id === selectedSceneId}
                     isFormulating={isFormulating === scene.id}
+                    isUnderstanding={isUnderstanding === scene.id}
                     onSelectScene={onSelectScene}
                     onFormulateClick={handleFormulateClick}
+                    onUnderstandClick={onUnderstandScene ? handleUnderstandClick : undefined}
                   />
                 ))}
               </div>

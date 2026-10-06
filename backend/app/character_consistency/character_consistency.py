@@ -1,43 +1,42 @@
+"""
+Stage 6 — character asset & consistency system.
+
+Routes every shot with 1+ named characters through USO (see uso_client.py
+for why UNO/PhotoMaker V2 were dropped). Enforces the spec's hard rule:
+never generate a character's first appearance without first creating and
+locking their reference set.
+"""
 import logging
-from typing import Dict, Any
-from app.character_consistency.instantid_client import InstantIDClient
-from app.character_consistency.ipadapter_client import IPAdapterClient
+from typing import Any, Dict, List
+
+from app.character_consistency.uso_client import USOClient
 
 logger = logging.getLogger(__name__)
 
+
 class CharacterConsistencyOrchestrator:
     def __init__(self):
-        self.instantid = InstantIDClient()
-        self.ipadapter = IPAdapterClient()
+        self.uso = USOClient()
 
-    def compile_consistency_params(
-        self,
-        reference_image_url: str,
-        face_lock: bool = True,
-        hair_lock: bool = False,
-        costume_lock: bool = False,
-        strength: float = 0.7
-    ) -> Dict[str, Any]:
+    def compile_consistency_params(self, characters: List[Dict[str, Any]], strength: float = 0.7) -> Dict[str, Any]:
         """
-        Synthesizes configuration nodes for ComfyUI.
+        `characters`: list of {"name", "reference_image_paths", "is_locked"}
+        — one entry per named character present in a shot.
+
+        Raises ValueError if any listed character isn't locked yet, rather
+        than silently generating an unlocked/inconsistent identity — the
+        caller (Stage 7's image generation route) should call
+        POST /characters/{id}/lock-reference first and surface that error.
         """
-        logger.info(f"Orchestrating consistency check for face reference {reference_image_url}")
-        
-        configs = {
-            "reference_image_url": reference_image_url,
-            "overall_strength": strength,
-            "locks": {
-                "face": face_lock,
-                "hair": hair_lock,
-                "costume": costume_lock
-            }
-        }
-        
-        if face_lock:
-            configs["instantid"] = self.instantid.build_instantid_params(reference_image_url, strength)
-            
-        if hair_lock or costume_lock:
-            # IPAdapter handles costume / style weight preservation
-            configs["ipadapter"] = self.ipadapter.build_ipadapter_params(reference_image_url, strength * 0.8)
-            
-        return configs
+        if not characters:
+            return {"engine": None, "reason": "No named characters in this shot."}
+
+        unlocked = [c["name"] for c in characters if not c.get("is_locked")]
+        if unlocked:
+            raise ValueError(
+                f"Cannot generate this shot — character(s) not yet locked: {', '.join(unlocked)}. "
+                "Call POST /characters/{id}/lock-reference first."
+            )
+
+        params = self.uso.build_uso_params(characters, strength)
+        return {"engine": "USO", "characters": [c["name"] for c in characters], **params}

@@ -130,7 +130,7 @@ SCENE FRAGMENT:
 Return only the suggestion text. No labels, no JSON."""
 
         try:
-            raw = await ai_service.call_gemini_api(prompt)
+            raw = await ai_service.call_llm(prompt)
             if raw:
                 return raw.strip()
         except Exception as e:

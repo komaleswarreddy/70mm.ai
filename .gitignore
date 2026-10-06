@@ -38,3 +38,18 @@ Thumbs.db
 .env.local
 backend/.env
 frontend/.env.local
+
+# Secrets uploaded as private Kaggle datasets - never commit
+kaggle_hf_token_dataset/hf_token.txt
+kaggle.json
+
+# MCP and testing artifacts
+.playwright-mcp/
+
+# Generated static media (directories preserved via .gitkeep)
+backend/static/storyboards/*
+!backend/static/storyboards/.gitkeep
+backend/static/boards/*
+!backend/static/boards/.gitkeep
+backend/static/character_refs/*
+!backend/static/character_refs/.gitkeep

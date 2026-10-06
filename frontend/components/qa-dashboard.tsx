@@ -14,7 +14,7 @@ interface TestCase {
 export function QADashboard() {
   const [testCases, setTestCases] = useState<TestCase[]>([
     { name: "Screenplay Regex Fountain Parser", category: "Parser", status: "pending", duration: 0 },
-    { name: "Gemini 2.5 Flash Router Endpoint", category: "AI Routing", status: "pending", duration: 0 },
+    { name: "Groq gpt-oss-120b Router Endpoint", category: "AI Routing", status: "pending", duration: 0 },
     { name: "Character Bible Database insertion", category: "Database", status: "pending", duration: 0 },
     { name: "Continuity Engine validation audit", category: "Continuity", status: "pending", duration: 0 },
     { name: "ReportLab Screenplay PDF Compiler", category: "Export", status: "pending", duration: 0 },

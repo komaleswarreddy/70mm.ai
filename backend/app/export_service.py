@@ -1,5 +1,6 @@
 import os
 import csv
+import json
 import logging
 from io import BytesIO, StringIO
 from reportlab.lib.pagesizes import letter
@@ -14,32 +15,38 @@ logger = logging.getLogger(__name__)
 def generate_project_csv(project: models.Project) -> str:
     """
     Generates a CSV string containing the shot list sheet for the project.
+    Columns match the spec's Stage 10 requirement (Scene, Shot, Type, Lens,
+    Movement, Lighting, Characters) plus the pre-existing columns kept for
+    backward compatibility with anything already consuming this export.
     """
     output = StringIO()
     writer = csv.writer(output)
-    
+
     writer.writerow([
-        "Scene Number", "Scene Heading", "Shot Number", "Shot Size", 
-        "Angle", "Movement", "Lens", "Lighting", "Emotion", "Notes"
+        "Scene Number", "Scene Heading", "Shot Number", "Shot Type", "Shot Size",
+        "Angle", "Movement", "Lens", "Lighting", "Emotion", "Characters", "Notes"
     ])
-    
+
     sorted_scenes = sorted(project.scenes, key=lambda s: s.order)
     for scene in sorted_scenes:
         sorted_shots = sorted(scene.shots, key=lambda sh: sh.order)
         for shot in sorted_shots:
+            characters = json.loads(shot.characters_in_shot) if shot.characters_in_shot else []
             writer.writerow([
                 scene.scene_number,
                 scene.heading,
                 shot.shot_number,
+                shot.shot_type or "",
                 shot.shot_size or "",
                 shot.angle or "",
                 shot.movement or "",
                 shot.lens or "",
                 shot.lighting or "",
                 shot.emotion or "",
+                ", ".join(characters),
                 shot.notes or ""
             ])
-            
+
     return output.getvalue()
 
 def generate_project_pdf(project: models.Project) -> bytes:
@@ -193,12 +200,15 @@ def generate_project_pdf(project: models.Project) -> bytes:
             if not img_flowable:
                 img_flowable = Paragraph("<b>No Storyboard Frame Generated</b>", table_cell_style)
                 
+            characters = ", ".join(json.loads(shot.characters_in_shot)) if shot.characters_in_shot else ""
             metadata_text = f"""
-            <b>Shot Number:</b> {shot.shot_number}<br/>
+            <b>Shot Number:</b> {shot.shot_number} {f"({shot.shot_type})" if shot.shot_type else ""}<br/>
             <b>Size:</b> {shot.shot_size or "N/A"} | <b>Angle:</b> {shot.angle or "N/A"}<br/>
             <b>Lens:</b> {shot.lens or "N/A"} | <b>Movement:</b> {shot.movement or "N/A"}<br/>
             <b>Lighting:</b> {shot.lighting or "N/A"}<br/>
             <b>Emotion:</b> {shot.emotion or "N/A"}<br/>
+            {f"<b>Characters:</b> {characters}<br/>" if characters else ""}
+            {f"<b>Reasoning:</b> {shot.reasoning}<br/>" if shot.reasoning else ""}
             <b>Notes:</b> {shot.notes or ""}
             """
             metadata_flowable = Paragraph(metadata_text, table_cell_style)

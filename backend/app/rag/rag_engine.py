@@ -15,7 +15,7 @@ class CinematicRAGEngine:
         logger.info(f"RAG engine processing query: {query}")
         contexts = self.retriever.retrieve_relevant_context(query)
         
-        # If we have a live Gemini key, we can ask it to summarize the contexts
+        # If a live LLM (Groq) is configured it could summarize the contexts;
         # Otherwise we formulate a structured mock synthesis.
         formatted_results = []
         for ctx in contexts:

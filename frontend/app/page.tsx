@@ -175,7 +175,7 @@ export default function Home() {
               </div>
               <h3 className="font-bold text-gray-200">1. Story & Script Parser</h3>
               <p className="text-xs text-gray-400 leading-relaxed">
-                Translate a simple logline into acts, beats, and character cast via Gemini. Upload a screenplay to split scenes deterministically.
+                Translate a simple logline into acts, beats, and character cast via Groq (gpt-oss-120b). Upload a screenplay to split scenes deterministically.
               </p>
             </div>
 

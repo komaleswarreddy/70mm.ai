@@ -290,7 +290,7 @@ EXCERPT:
 Return bullet points only. No JSON. No headers."""
 
         try:
-            result = await ai_service.call_gemini_api(prompt)
+            result = await ai_service.call_llm(prompt)
             if result:
                 return result.strip()
         except Exception as e:

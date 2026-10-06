@@ -23,18 +23,20 @@ async def override_get_db():
         finally:
             await session.close()
 
-app.dependency_overrides[get_db] = override_get_db
-
 MOCK_TOKEN = "mock_vasu_token_xyz"
 AUTH_HEADERS = {"Authorization": f"Bearer {MOCK_TOKEN}"}
 
 @pytest_asyncio.fixture(autouse=True)
 async def setup_db():
+    # Scoped here (not module-level) so it can't leak into other test files
+    # sharing the same `app` singleton and expecting the real DB engine.
+    app.dependency_overrides[get_db] = override_get_db
     async with test_engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
     yield
     async with test_engine.begin() as conn:
         await conn.run_sync(Base.metadata.drop_all)
+    app.dependency_overrides.pop(get_db, None)
 
 @pytest_asyncio.fixture
 async def client():

@@ -20,7 +20,7 @@ def test_project_lifecycle_and_ai_endpoints():
         assert response.status_code == 200
         assert response.json()["title"] == "Test Movie"
         
-        # 3. Generate Story Outline (Gemini mock fallback)
+        # 3. Generate Story Outline (LLM mock fallback)
         response = client.post(f"/api/ai/projects/{project_id}/generate-story", json={
             "idea": "An astronaut gets stranded on Mars but discovers a thriving underground coffee shop."
         }, headers=headers)

@@ -1,0 +1,792 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Storyboard Tools Guide</title>
+<meta name="description" content="A beginner-friendly guide to every tool we researched for the 70MM.ai storyboard engine, and which ones we actually use today.">
+<script>
+  // Apply a saved light/dark choice before the page paints (avoids a flash).
+  try { var t = localStorage.getItem("tool-guide-theme"); if (t === "light" || t === "dark") document.documentElement.dataset.theme = t; } catch (e) {}
+</script>
+<style>
+  :root {
+    --bg: #f6f5f1;
+    --surface: #ffffff;
+    --surface-2: #f0eee8;
+    --text: #1d1c1a;
+    --muted: #5d5a53;
+    --border: #e2dfd7;
+    --border-strong: #c9c5bb;
+    --accent: #a8432c;
+    --accent-soft: #f6e4de;
+    --using: #1c6e43;      --using-bg: #e1f3e8;
+    --off: #855700;        --off-bg: #fbefd2;
+    --replaced: #2453a0;   --replaced-bg: #e2eafa;
+    --notused: #5d5a53;    --notused-bg: #ebe9e4;
+    --new: #6a3d9e;        --new-bg: #efe6f8;
+    --warn: #8f2d1d;       --warn-bg: #fbe6e1;
+    --shadow: 0 1px 2px rgba(0,0,0,.05), 0 2px 8px rgba(0,0,0,.04);
+    --radius: 14px;
+    --font: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #131312;
+      --surface: #1c1c1a;
+      --surface-2: #262523;
+      --text: #ecebe6;
+      --muted: #a9a69e;
+      --border: #32312d;
+      --border-strong: #4a4843;
+      --accent: #f08c6e;
+      --accent-soft: #3a221b;
+      --using: #86d9a8;      --using-bg: #17352a;
+      --off: #f1c46a;        --off-bg: #3a2d10;
+      --replaced: #95b8f3;   --replaced-bg: #1b2a45;
+      --notused: #b5b2aa;    --notused-bg: #2b2a27;
+      --new: #c9a6f1;        --new-bg: #2d2141;
+      --warn: #f3a08d;       --warn-bg: #3c1f19;
+      --shadow: none;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #131312;
+    --surface: #1c1c1a;
+    --surface-2: #262523;
+    --text: #ecebe6;
+    --muted: #a9a69e;
+    --border: #32312d;
+    --border-strong: #4a4843;
+    --accent: #f08c6e;
+    --accent-soft: #3a221b;
+    --using: #86d9a8;      --using-bg: #17352a;
+    --off: #f1c46a;        --off-bg: #3a2d10;
+    --replaced: #95b8f3;   --replaced-bg: #1b2a45;
+    --notused: #b5b2aa;    --notused-bg: #2b2a27;
+    --new: #c9a6f1;        --new-bg: #2d2141;
+    --warn: #f3a08d;       --warn-bg: #3c1f19;
+    --shadow: none;
+  }
+
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; scroll-padding-top: 16px; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font: 17px/1.65 var(--font);
+    -webkit-font-smoothing: antialiased;
+  }
+  a { color: var(--accent); }
+  code { font: .88em/1.4 ui-monospace, "Cascadia Code", Consolas, monospace; background: var(--surface-2); padding: .1em .35em; border-radius: 6px; }
+  h1, h2, h3 { line-height: 1.25; }
+  h2 { font-size: 1.55rem; margin: 0 0 .4rem; }
+  h3 { font-size: 1.12rem; margin: 0; }
+
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 0 16px; }
+  .layout { display: grid; grid-template-columns: 220px minmax(0, 1fr); gap: 40px; align-items: start; }
+  @media (max-width: 960px) { .layout { grid-template-columns: minmax(0, 1fr); gap: 0; } }
+
+  /* Header */
+  .top { padding: 28px 0 8px; display: flex; justify-content: space-between; gap: 16px; align-items: center; }
+  .eyebrow { font-size: .8rem; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--accent); }
+  .theme-btn {
+    font: inherit; font-size: .88rem; color: var(--text); background: var(--surface);
+    border: 1px solid var(--border-strong); border-radius: 999px; padding: 6px 14px; cursor: pointer; white-space: nowrap;
+  }
+  .theme-btn:hover { border-color: var(--accent); }
+  .hero h1 { font-size: clamp(1.9rem, 4.5vw, 2.7rem); margin: 10px 0 12px; letter-spacing: -.01em; }
+  .hero .lead { font-size: 1.12rem; color: var(--muted); max-width: 46rem; margin: 0 0 24px; }
+
+  /* Sidebar contents */
+  .toc { position: sticky; top: 16px; padding-top: 6px; }
+  .toc h4 { margin: 0 0 8px; font-size: .78rem; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+  .toc ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+  .toc a { display: block; padding: 5px 10px; border-radius: 8px; color: var(--text); text-decoration: none; font-size: .93rem; }
+  .toc a:hover { background: var(--surface-2); }
+  .toc a.active { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
+  @media (max-width: 960px) {
+    .toc { position: static; margin: 0 0 24px; }
+    .toc ol { display: flex; flex-wrap: wrap; gap: 6px; }
+    .toc a { border: 1px solid var(--border); background: var(--surface); padding: 4px 11px; font-size: .86rem; border-radius: 999px; }
+  }
+
+  section { padding: 8px 0 36px; }
+  section > p, section > ul, section > ol { max-width: 48rem; }
+  .muted { color: var(--muted); }
+
+  /* Panels */
+  .panel { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px 22px; box-shadow: var(--shadow); }
+  .panel + .panel { margin-top: 14px; }
+  .first-read ul { margin: 0; padding-left: 1.2em; }
+  .first-read li + li { margin-top: 6px; }
+
+  /* Counters */
+  .counts { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin: 18px 0 0; }
+  @media (max-width: 700px) { .counts { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+  .count { display: block; text-decoration: none; color: var(--text); background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 16px; box-shadow: var(--shadow); }
+  .count:hover { border-color: var(--border-strong); }
+  .count b { display: block; font-size: 2rem; line-height: 1.1; }
+  .count span { font-size: .9rem; color: var(--muted); }
+  .count.using b { color: var(--using); }
+  .count.off b { color: var(--off); }
+  .count.replaced b { color: var(--replaced); }
+  .count.notused b { color: var(--notused); }
+
+  /* Badges */
+  .badge { display: inline-flex; align-items: center; gap: 6px; font-size: .78rem; font-weight: 650; padding: 3px 10px; border-radius: 999px; white-space: nowrap; }
+  .badge::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+  .badge.using { color: var(--using); background: var(--using-bg); }
+  .badge.off { color: var(--off); background: var(--off-bg); }
+  .badge.replaced { color: var(--replaced); background: var(--replaced-bg); }
+  .badge.notused { color: var(--notused); background: var(--notused-bg); }
+  .badge.new { color: var(--new); background: var(--new-bg); }
+  .legend { display: grid; gap: 10px; margin: 0; padding: 0; list-style: none; }
+  .legend li { display: flex; gap: 12px; align-items: baseline; flex-wrap: wrap; }
+
+  /* Crew list */
+  .crew { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 12px; margin: 16px 0 20px; padding: 0; list-style: none; }
+  .crew li { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 12px 14px; font-size: .95rem; }
+  .crew b { display: block; }
+  .crew span { color: var(--muted); }
+
+  /* Diagrams */
+  figure { margin: 18px 0 0; }
+  .diagram { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 18px; overflow-x: auto; text-align: center; box-shadow: var(--shadow); }
+  .diagram svg { max-width: 100%; height: auto; }
+  .diagram .loading { color: var(--muted); font-size: .95rem; padding: 30px 0; }
+  figcaption { font-size: .9rem; color: var(--muted); margin-top: 8px; }
+  .swipe-hint { display: none; font-weight: 600; }
+  @media (max-width: 640px) {
+    /* Keep diagram text readable on phones; the box scrolls sideways instead of shrinking it. */
+    .diagram svg { min-width: min(var(--nat, 100%), 620px); }
+    .swipe-hint { display: inline; }
+  }
+
+  /* Judging questions */
+  .questions { counter-reset: q; list-style: none; padding: 0; display: grid; gap: 10px; }
+  .questions li { counter-increment: q; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 12px 16px 12px 52px; position: relative; }
+  .questions li::before { content: counter(q); position: absolute; left: 14px; top: 12px; width: 26px; height: 26px; border-radius: 50%; background: var(--accent-soft); color: var(--accent); font-weight: 700; font-size: .9rem; display: grid; place-items: center; }
+
+  /* Changes list */
+  .changes { list-style: none; padding: 0; margin: 18px 0 0; display: grid; gap: 10px; max-width: none; }
+  .changes li { background: var(--surface); border: 1px solid var(--border); border-left: 4px solid var(--replaced); border-radius: 10px; padding: 12px 16px; }
+  .changes li.warn { border-left-color: var(--warn); }
+  .changes .was { color: var(--muted); }
+
+  /* Tool cards */
+  .group-title { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin: 26px 0 12px; font-size: 1.05rem; }
+  .group-title:first-of-type { margin-top: 14px; }
+  .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 14px; }
+  @media (max-width: 380px) { .cards { grid-template-columns: minmax(0, 1fr); } }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 18px 18px 16px; box-shadow: var(--shadow); display: flex; flex-direction: column; gap: 9px; border-top: 4px solid var(--notused-bg); }
+  .card[data-status="using"] { border-top-color: var(--using); }
+  .card[data-status="off"] { border-top-color: var(--off); }
+  .card[data-status="replaced"] { border-top-color: var(--replaced); }
+  .card[data-status="notused"] { border-top-color: var(--border-strong); }
+  .card-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; }
+  .card-head h3 small { display: block; font-size: .82rem; font-weight: 500; color: var(--muted); margin-top: 2px; }
+  .badges { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
+  .card p { margin: 0; font-size: .96rem; }
+  .card .meta { font-size: .82rem; color: var(--muted); }
+  .card .analogy { font-style: italic; color: var(--muted); }
+  .card .note { font-size: .9rem; background: var(--surface-2); border-radius: 8px; padding: 8px 10px; }
+  .card .note.changed { background: var(--replaced-bg); }
+  .card .note.swap { background: var(--off-bg); }
+  .card .note.warn { background: var(--warn-bg); }
+  .card .note b { font-weight: 650; }
+
+  /* Table */
+  .table-wrap { overflow-x: auto; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); box-shadow: var(--shadow); margin-top: 16px; }
+  table { border-collapse: collapse; width: 100%; min-width: 680px; font-size: .92rem; }
+  th, td { text-align: left; padding: 10px 14px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  th { background: var(--surface-2); font-size: .8rem; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); position: sticky; top: 0; }
+  tr:last-child td { border-bottom: 0; }
+  td.score { white-space: nowrap; font-variant-numeric: tabular-nums; }
+  tr.sep td { background: var(--surface-2); font-weight: 650; font-size: .82rem; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); }
+
+  /* Warnings */
+  .warnings { list-style: none; padding: 0; display: grid; gap: 12px; max-width: none; }
+  .warnings li { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px; }
+  .warnings li.big { border: 1px solid var(--warn); background: var(--warn-bg); }
+  .warnings .said { font-weight: 650; display: block; margin-bottom: 4px; }
+
+  /* Glossary */
+  dl.glossary { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; margin: 16px 0 0; }
+  dl.glossary div { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 12px 14px; }
+  dl.glossary dt { font-weight: 700; }
+  dl.glossary dd { margin: 2px 0 0; color: var(--muted); font-size: .94rem; }
+
+  footer { border-top: 1px solid var(--border); padding: 22px 0 40px; color: var(--muted); font-size: .9rem; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top">
+    <span class="eyebrow">70MM.ai · Storyboard engine</span>
+    <button class="theme-btn" id="themeBtn" type="button" aria-label="Switch light or dark mode">Dark mode</button>
+  </div>
+  <header class="hero">
+    <h1>Which tools make our storyboards?</h1>
+    <p class="lead">A simple guide to every tool we researched for turning a screenplay into storyboard pictures, and which ones we <strong>actually use today</strong>.</p>
+  </header>
+
+  <div class="layout">
+    <nav class="toc" aria-label="Contents">
+      <h4>Contents</h4>
+      <ol>
+        <li><a href="#start">Read this first</a></li>
+        <li><a href="#job">The job, in plain words</a></li>
+        <li><a href="#judge">How we judged a tool</a></li>
+        <li><a href="#then-now">August plan vs today</a></li>
+        <li><a href="#using">Tools we use today</a></li>
+        <li><a href="#off">Built in, switched off</a></li>
+        <li><a href="#replaced">Tried, then replaced</a></li>
+        <li><a href="#notused">Looked at, not used</a></li>
+        <li><a href="#scoreboard">Scoreboard</a></li>
+        <li><a href="#warnings">Honest warnings</a></li>
+        <li><a href="#words">Words explained</a></li>
+      </ol>
+    </nav>
+
+    <main>
+      <!-- 1. Read this first -->
+      <section id="start">
+        <h2>Read this first</h2>
+        <div class="panel first-read">
+          <ul>
+            <li>On <strong>29 August 2026</strong> we researched 18 tools to find out which ones could help turn a film script into storyboard pictures.</li>
+            <li>The big finding: <strong>no single tool does the whole job.</strong> You need a team of tools, each doing one part, like a film crew.</li>
+            <li>The research's top pick, <strong>ComfyUI running the Flux.1-dev image model</strong>, is still the heart of the system today.</li>
+            <li>Many other picks changed once we actually built and tested them. Every card below shows what we use <em>now</em> (checked against the code on 1 October 2026).</li>
+          </ul>
+        </div>
+
+        <div class="counts">
+          <a class="count using" href="#using"><b>11</b><span>Using now<br>(4 from the research + 7 added later)</span></a>
+          <a class="count off" href="#off"><b>1</b><span>Built in, but switched off</span></a>
+          <a class="count replaced" href="#replaced"><b>3</b><span>Tried, then replaced</span></a>
+          <a class="count notused" href="#notused"><b>11</b><span>Looked at, not used</span></a>
+        </div>
+
+        <div class="panel" style="margin-top:14px">
+          <h3 style="margin-bottom:10px">What the coloured tags mean</h3>
+          <ul class="legend">
+            <li><span class="badge using">Using now</span> Part of the working system today.</li>
+            <li><span class="badge off">Switched off</span> The code to use it exists, but nothing turns it on.</li>
+            <li><span class="badge replaced">Replaced</span> We tried or planned it, then swapped it for something better.</li>
+            <li><span class="badge notused">Not used</span> We studied it and decided it doesn't fit.</li>
+            <li><span class="badge new">Added later</span> Not in the August research. We found we needed it while building.</li>
+          </ul>
+        </div>
+      </section>
+
+      <!-- 2. The job -->
+      <section id="job">
+        <h2>The job, in plain words</h2>
+        <p>You give the app a screenplay. It gives you back a storyboard: a big sheet of pictures, one for each camera shot, with notes under each one. Making a film needs a crew, and so does this. Here is our crew:</p>
+        <ul class="crew">
+          <li><b>The script reader</b><span>Splits the script into scenes, lines and characters.</span></li>
+          <li><b>The director</b><span>Decides the shots: close-up or wide, which lens, how the camera moves.</span></li>
+          <li><b>The artist</b><span>Draws each shot as a realistic picture.</span></li>
+          <li><b>The face keeper</b><span>Makes sure RAM always looks like RAM and SITA like SITA.</span></li>
+          <li><b>The checkers</b><span>Spot mistakes: missing people, broken hands, wrong clothes.</span></li>
+          <li><b>The board builder</b><span>Lays everything out on one sheet you can download.</span></li>
+        </ul>
+        <p>The diagram shows each step, and the <strong>exact tool we use today</strong> for it (in bold).</p>
+        <figure data-diagram="d-pipeline">
+          <div class="diagram"><div class="loading">Drawing the diagram… (needs an internet connection)</div></div>
+          <figcaption><span class="swipe-hint">Swipe sideways to see the whole diagram. </span>Solid arrows are the main path. Dotted arrows show where the computer power and the AI models come from.</figcaption>
+        </figure>
+      </section>
+
+      <!-- 3. How we judged -->
+      <section id="judge">
+        <h2>How we judged a tool</h2>
+        <p>The research gave every tool a score out of 10 by asking five simple questions:</p>
+        <ol class="questions">
+          <li><strong>Is it free?</strong> We wanted no fees for every picture we make.</li>
+          <li><strong>Can our code control it?</strong> In other words, does it have an <em>API</em>, a way for programs to talk to it? Our pipeline is automatic, so nobody clicks buttons in the middle.</li>
+          <li><strong>Does it do one of our jobs?</strong> Some good tools solve a different problem.</li>
+          <li><strong>Is someone still looking after it?</strong> Was it updated in 2025–2026, or has it been abandoned?</li>
+          <li><strong>Is the licence safe?</strong> The licence is the rulebook that says how you may use it. Are we allowed to use it in a product we might sell one day?</li>
+        </ol>
+        <p class="muted">A tool could be great software and still score low. If a person has to click its buttons, it can't be part of an automatic pipeline.</p>
+      </section>
+
+      <!-- 4. Then vs now -->
+      <section id="then-now">
+        <h2>August plan vs today</h2>
+        <p>The left side is what the research recommended. The right side is what we actually use now. The word on each arrow says what happened.</p>
+        <figure data-diagram="d-then-now">
+          <div class="diagram"><div class="loading">Drawing the diagram… (needs an internet connection)</div></div>
+          <figcaption><span class="swipe-hint">Swipe sideways to see the whole diagram. </span>"Kept" means the research was right. "Swapped" means real testing showed a better option.</figcaption>
+        </figure>
+
+        <h3 style="margin-top:26px">What changed since the research, and why</h3>
+        <ul class="changes">
+          <li><span class="was">Research said: use <strong>Gemini 2.5 Flash</strong> as the text AI.</span><br>Today: <strong>Groq · gpt-oss-120b</strong>. The project rule became "never use Gemini". Groq is very fast and returns clean, structured answers.</li>
+          <li><span class="was">Research said: <strong>PhotoMaker V2</strong> is the best face tool, with "no licence landmine".</span><br>Today: <strong>USO</strong>. That claim turned out to be wrong. PhotoMaker V2 depends on InsightFace face models, which are for research only, and it is built for a different image model (SDXL), not Flux.</li>
+          <li><span class="was">Research said: use <strong>UNO / UMO</strong> for shots with several characters.</span><br>Today: <strong>USO</strong>. The community add-on that runs UNO inside ComfyUI had a bug: every time we gave it a reference photo, it made a flat, broken picture. USO comes from the same company and is UNO's newer version. It runs on ComfyUI's own built-in parts, so there's no outside add-on to break.</li>
+          <li><span class="was">Research said: <strong>Diffusers</strong> is the library "underneath ComfyUI".</span><br>Today: not used. This was a mistake in the research. ComfyUI has its own engine and doesn't use Diffusers, so we never needed it.</li>
+          <li><span class="was">Research said: <strong>ControlNet</strong> is the main way to control the camera.</span><br>Today: switched off. We control framing with careful prompt wording, plus a first pass that uses only words. The ControlNet code is there, but nothing turns it on, and its model file isn't downloaded.</li>
+          <li><span class="was">Research said: <strong>InsightFace / DeepFace</strong> can check faces inside our own quality checks.</span><br>Today: <strong>YuNet + SFace</strong> (two small OpenCV models). They're free for commercial use, so even our checking step is licence-safe.</li>
+          <li><span class="was">Research said: use <strong>screenplay-tools</strong> to read script files.</span><br>Today: <strong>our own parser</strong>. It reads Fountain, Final Draft (FDX), PDF, Word and plain text. It keeps the research's key advice: no AI for this exact step.</li>
+          <li><span class="was">Research said: run the image AI on a <strong>rented or owned GPU</strong>.</span><br>Today: a <strong>free Kaggle GPU</strong>, reached through a free <strong>Cloudflare tunnel</strong>.</li>
+          <li class="warn"><span class="was">Research didn't mention this.</span><br><strong>Flux.1-dev's own licence is "non-commercial".</strong> Pictures it makes can be used commercially, but running the model inside a paid product needs a commercial licence from its makers, Black Forest Labs. This is the biggest thing to fix before selling the product.</li>
+        </ul>
+      </section>
+
+      <!-- 5. Using now -->
+      <section id="using">
+        <h2>Tools we use today</h2>
+        <p>These 11 tools make every storyboard you see in the app.</p>
+
+        <div class="group-title"><span>From the research</span><span class="muted" style="font-size:.9rem;font-weight:400">· 4 tools</span></div>
+        <div class="cards">
+          <article class="card" data-status="using">
+            <div class="card-head"><h3>ComfyUI <small>running Flux.1-dev</small></h3><div class="badges"><span class="badge using">Using now</span></div></div>
+            <p class="meta">Research score 9.5 / 10 · ComfyUI: GPL-3.0 (free) · Flux.1-dev: non-commercial licence ⚠</p>
+            <p><strong>What it is:</strong> A program that runs image-making AI. You connect small boxes called <em>nodes</em>, like LEGO, into a recipe for a picture. Our backend sends it that recipe over the internet.</p>
+            <p class="analogy">Think of ComfyUI as the kitchen and Flux.1-dev as the chef who paints the picture.</p>
+            <p><strong>How we use it:</strong> It runs on a free Kaggle GPU. Every shot is made in 3 passes. First it draws the scene from words only, to get the framing and action right. Next it cleans up details like hands. Last, it finds each face and repaints it using that character's reference photos.</p>
+          </article>
+
+          <article class="card" data-status="using">
+            <div class="card-head"><h3>Hugging Face Hub <small>the model library</small></h3><div class="badges"><span class="badge using">Using now</span></div></div>
+            <p class="meta">Research score 7 / 10 · Free to download from</p>
+            <p><strong>What it is:</strong> A huge website where people share AI models, like an app store for AI.</p>
+            <p class="analogy">It's the shelf where we pick up our tools before work starts.</p>
+            <p><strong>How we use it:</strong> Every time the Kaggle machine starts, it downloads Flux.1-dev, its text readers and the USO add-on from here (about 40 GB). As the research advised, we don't use Hugging Face's paid service that runs models for you.</p>
+          </article>
+
+          <article class="card" data-status="using">
+            <div class="card-head"><h3>OpenCV <small>picture toolbox</small></h3><div class="badges"><span class="badge using">Using now</span></div></div>
+            <p class="meta">Research score 6 / 10 · Apache-2.0 (free, commercial-safe)</p>
+            <p><strong>What it is:</strong> A free, very popular library of code for working with images.</p>
+            <p class="analogy">A Swiss-army knife for pictures.</p>
+            <p><strong>How we use it:</strong> It runs YuNet, which finds faces, and SFace, which says whose face it is (see their card). It also compares colours between shots, to catch lighting that suddenly changes.</p>
+            <p class="note changed"><b>Changed since the research:</b> it was meant to be one small ingredient. It ended up running our face check too.</p>
+          </article>
+
+          <article class="card" data-status="using">
+            <div class="card-head"><h3>CLIP <small>picture "fingerprints"</small></h3><div class="badges"><span class="badge using">Using now</span></div></div>
+            <p class="meta">Research score 7 / 10 (scored together with DeepFace) · MIT (free)</p>
+            <p><strong>What it is:</strong> A model that turns a picture into a list of numbers that describes how it looks. Two similar-looking pictures get similar numbers.</p>
+            <p class="analogy">Like a fingerprint for the whole look of a picture.</p>
+            <p><strong>How we use it:</strong> In the continuity check. It asks: does this shot's style, costume and place still look like the other shots in the same scene? If not, the shot is flagged for review.</p>
+          </article>
+        </div>
+
+        <div class="group-title"><span>Added later</span><span class="badge new">Not in the research</span><span class="muted" style="font-size:.9rem;font-weight:400">· 7 tools</span></div>
+        <div class="cards">
+          <article class="card" data-status="using">
+            <div class="card-head"><h3>USO <small>by ByteDance</small></h3><div class="badges"><span class="badge using">Using now</span><span class="badge new">Added later</span></div></div>
+            <p class="meta">Apache-2.0 (free, commercial-safe) · Runs inside ComfyUI</p>
+            <p><strong>What it is:</strong> An add-on for Flux that looks at reference photos of a character and keeps that person looking the same in new pictures.</p>
+            <p class="analogy">Like pinning a photo of the actor next to the painter's easel.</p>
+            <p><strong>How we use it:</strong> In the last pass, each face in the picture is repainted with USO, using that character's reference photos. It's built only from ComfyUI's own built-in nodes, with no outside add-on.</p>
+            <p class="note swap"><b>Replaced:</b> PhotoMaker V2, UNO / UMO, and InstantID / IP-Adapter.</p>
+          </article>
+
+          <article class="card" data-status="using">
+            <div class="card-head"><h3>YuNet + SFace <small>face finder + face checker</small></h3><div class="badges"><span class="badge using">Using now</span><span class="badge new">Added later</span></div></div>
+            <p class="meta">YuNet: MIT · SFace: Apache-2.0 · Both run through OpenCV on our own computer</p>
+            <p><strong>What they are:</strong> Two small face models. YuNet finds every face in a picture. SFace makes a "face fingerprint" and compares it with RAM's and SITA's reference photos.</p>
+            <p class="analogy">YuNet says "there's a face here". SFace says "that's SITA".</p>
+            <p><strong>How we use them:</strong> They decide which face to repaint as which character. Then they mark the result on a 0–1 scale, where higher means more alike. On closer shots, a face scoring below 0.55 fails the check and the shot is made again.</p>
+            <p class="note swap"><b>Replaced:</b> InsightFace and DeepFace, which the research suggested for this job.</p>
+          </article>
+
+          <article class="card" data-status="using">
+            <div class="card-head"><h3>MediaPipe <small>by Google</small></h3><div class="badges"><span class="badge using">Using now</span><span class="badge new">Added later</span></div></div>
+            <p class="meta">Apache-2.0 (free) · Runs on our own computer</p>
+            <p><strong>What it is:</strong> A set of small models that find faces and hands, and the points on each finger.</p>
+            <p class="analogy">A quick doctor's check-up for hands: are there five fingers, and are they the right lengths?</p>
+            <p><strong>How we use it:</strong> The first, free quality check on every picture. It counts faces and hands and catches broken fingers (a common AI mistake), all before we ask the bigger AI checker.</p>
+          </article>
+
+          <article class="card" data-status="using">
+            <div class="card-head"><h3>Groq <small>gpt-oss-120b + qwen3.8-27b</small></h3><div class="badges"><span class="badge using">Using now</span><span class="badge new">Added later</span></div></div>
+            <p class="meta">Online service with a free tier (speed limits apply)</p>
+            <p><strong>What it is:</strong> Groq is a company that runs AI models very fast in the cloud. We use two of its models:</p>
+            <p>• <strong>gpt-oss-120b</strong> is the "brain" for text. It understands the story, plans the shots and drafts the captions under each picture.<br>• <strong>qwen3.8-27b</strong> is the "eyes". It looks at each new picture and reports what's wrong: someone missing, bad hands, wrong clothes or the wrong shot size.</p>
+            <p class="analogy">A very fast phone line to two experts: a writer and an inspector.</p>
+            <p class="note swap"><b>Replaced:</b> Gemini 2.5 Flash, from the original plan. Project rule: never use Gemini.</p>
+          </article>
+
+          <article class="card" data-status="using">
+            <div class="card-head"><h3>Kaggle <small>free cloud GPU</small></h3><div class="badges"><span class="badge using">Using now</span><span class="badge new">Added later</span></div></div>
+            <p class="meta">Free · Weekly limit on GPU hours · Each session stops after 12 hours</p>
+            <p><strong>What it is:</strong> A website that lends you a powerful graphics card (GPU) in the cloud for free. Image AI needs a GPU; a normal laptop is far too slow.</p>
+            <p class="analogy">Borrowing a professional studio for the day instead of buying one.</p>
+            <p><strong>How we use it:</strong> Our setup notebook installs ComfyUI, downloads the models and starts it, all automatically, on a Tesla T4 GPU.</p>
+            <p class="note swap"><b>Replaced:</b> the research's "rented or owned GPU".</p>
+          </article>
+
+          <article class="card" data-status="using">
+            <div class="card-head"><h3>Cloudflare tunnel <small>quick tunnel</small></h3><div class="badges"><span class="badge using">Using now</span><span class="badge new">Added later</span></div></div>
+            <p class="meta">Free · No account needed</p>
+            <p><strong>What it is:</strong> A tool that gives a computer hidden inside Kaggle a temporary public web address.</p>
+            <p class="analogy">Like a temporary phone number, so our backend can call the Kaggle machine.</p>
+            <p><strong>How we use it:</strong> Our backend sends picture recipes to ComfyUI through this address. The address changes every session, so the notebook publishes the new one where we can read it.</p>
+          </article>
+
+          <article class="card" data-status="using">
+            <div class="card-head"><h3>ReportLab + Pillow <small>the board builders</small></h3><div class="badges"><span class="badge using">Using now</span><span class="badge new">Added later</span></div></div>
+            <p class="meta">ReportLab: BSD · Pillow: open source · Both free</p>
+            <p><strong>What they are:</strong> Two Python libraries. ReportLab makes PDF files, and Pillow makes and edits images.</p>
+            <p class="analogy">The printer and the photo lab.</p>
+            <p><strong>How we use them:</strong> When you click <em>Compose Boards</em>, ReportLab builds a sharp PDF with every picture at full quality. Pillow builds a 7200-pixel-wide PNG and a quick preview. The research only mentioned ReportLab in passing, for a shot-list export.</p>
+          </article>
+        </div>
+      </section>
+
+      <!-- 6. Switched off -->
+      <section id="off">
+        <h2>Built in, but switched off</h2>
+        <div class="cards">
+          <article class="card" data-status="off">
+            <div class="card-head"><h3>ControlNet <small>guide-image add-on</small></h3><div class="badges"><span class="badge off">Switched off</span></div></div>
+            <p class="meta">Research score 8.5 / 10 · Licence depends on the model file</p>
+            <p><strong>What it is:</strong> An add-on that makes the image AI follow a guide picture, such as a depth map or a stick-figure pose.</p>
+            <p class="analogy">Like tracing paper under a drawing.</p>
+            <p><strong>Where it stands:</strong> The code to plug it in exists (for shots with no characters). But nothing turns it on, and the model file isn't downloaded on Kaggle. Framing comes from careful prompt wording and the words-only first pass instead.</p>
+            <p class="note changed"><b>Changed since the research:</b> it was ranked #3 as "the main way to control the camera". In practice, we didn't need it yet.</p>
+          </article>
+        </div>
+      </section>
+
+      <!-- 7. Replaced -->
+      <section id="replaced">
+        <h2>Tried, then replaced</h2>
+        <div class="cards">
+          <article class="card" data-status="replaced">
+            <div class="card-head"><h3>PhotoMaker V2 <small>by TencentARC</small></h3><div class="badges"><span class="badge replaced">Replaced</span></div></div>
+            <p class="meta">Research score 8.5 / 10 · It was the research's #1 face tool</p>
+            <p><strong>What it is:</strong> A tool that makes a new picture of a person look like their reference photo, without any extra training.</p>
+            <p><strong>Why we dropped it:</strong> It relies on InsightFace face models, which are research-only, and it is built for SDXL, a different image model from our Flux.</p>
+            <p class="note swap"><b>Replaced by:</b> USO.</p>
+            <p class="note changed"><b>Changed since the research:</b> the research said it had "no licence landmine". It does, through InsightFace.</p>
+          </article>
+
+          <article class="card" data-status="replaced">
+            <div class="card-head"><h3>UNO / UMO <small>by ByteDance</small></h3><div class="badges"><span class="badge replaced">Replaced</span></div></div>
+            <p class="meta">Research score 8 / 10 · Apache-2.0</p>
+            <p><strong>What it is:</strong> A model that keeps several characters looking right when they appear together in one picture.</p>
+            <p><strong>Why we dropped it:</strong> We tested it on the real GPU. The community add-on that runs UNO in ComfyUI had a bug: with <em>any</em> reference photo, it made a flat, broken picture.</p>
+            <p class="note swap"><b>Replaced by:</b> USO, the same company's newer model, which runs on ComfyUI's built-in parts.</p>
+          </article>
+
+          <article class="card" data-status="replaced">
+            <div class="card-head"><h3>IP-Adapter-FaceID / InstantID <small>face-copy add-ons</small></h3><div class="badges"><span class="badge replaced">Replaced</span></div></div>
+            <p class="meta">Research score 4 / 10 · Their face models: research-only licence</p>
+            <p><strong>What they are:</strong> Add-ons that copy a face from a photo into a new picture.</p>
+            <p><strong>Why we dropped them:</strong> The very first version of the app used them (Module 31). We removed them because their face models may not be used in a commercial product.</p>
+            <p class="note swap"><b>Replaced by:</b> USO for drawing faces, and YuNet + SFace for checking them.</p>
+          </article>
+        </div>
+      </section>
+
+      <!-- 8. Not used -->
+      <section id="notused">
+        <h2>Looked at, not used</h2>
+        <p>Good to know about. Each card says in one line why it doesn't fit.</p>
+        <div class="cards">
+          <article class="card" data-status="notused">
+            <div class="card-head"><h3>Hugging Face Diffusers <small>image AI library</small></h3><div class="badges"><span class="badge notused">Not used</span></div></div>
+            <p class="meta">Research score 9.5 / 10 · Apache-2.0</p>
+            <p><strong>What it is:</strong> A Python library for running image AI models from your own code.</p>
+            <p><strong>Why not:</strong> ComfyUI already does this job, with its own engine.</p>
+            <p class="note changed"><b>Changed since the research:</b> the research said Diffusers runs underneath ComfyUI. It doesn't, so we never needed it.</p>
+          </article>
+
+          <article class="card" data-status="notused">
+            <div class="card-head"><h3>screenplay-tools <small>script file reader</small></h3><div class="badges"><span class="badge notused">Not used</span></div></div>
+            <p class="meta">Research score 8 / 10 · MIT</p>
+            <p><strong>What it is:</strong> Free code that reads screenplay files (Fountain and Final Draft).</p>
+            <p><strong>Instead:</strong> we wrote our own parser. It reads Fountain, Final Draft (FDX), PDF, Word and plain text, without AI, which matches the research's advice.</p>
+          </article>
+
+          <article class="card" data-status="notused">
+            <div class="card-head"><h3>InsightFace <small>face recognition</small></h3><div class="badges"><span class="badge notused">Not used</span></div></div>
+            <p class="meta">Research score 6 / 10 · Code MIT, but face models research-only ⚠</p>
+            <p><strong>What it is:</strong> The best-known free face-recognition toolkit.</p>
+            <p><strong>Why not:</strong> We avoided it on purpose. Its trained face models are for research only. YuNet + SFace do the job with commercial-safe licences.</p>
+          </article>
+
+          <article class="card" data-status="notused">
+            <div class="card-head"><h3>DeepFace <small>face comparison</small></h3><div class="badges"><span class="badge notused">Not used</span></div></div>
+            <p class="meta">Research score 7 / 10 (scored together with CLIP) · MIT</p>
+            <p><strong>What it is:</strong> A simple Python wrapper around several face-recognition models.</p>
+            <p><strong>Why not:</strong> SFace already compares faces for us, so one tool was enough.</p>
+          </article>
+
+          <article class="card" data-status="notused">
+            <div class="card-head"><h3>Story2Board <small>research project</small></h3><div class="badges"><span class="badge notused">Not used</span></div></div>
+            <p class="meta">Research score 7 / 10 · MIT</p>
+            <p><strong>What it is:</strong> A university research project that makes storyboard pictures with consistent characters.</p>
+            <p><strong>Why not:</strong> It's small, young and run by one person. Our ComfyUI + USO pipeline already does this job.</p>
+          </article>
+
+          <article class="card" data-status="notused">
+            <div class="card-head"><h3>Boords <small>storyboard website</small></h3><div class="badges"><span class="badge notused">Not used</span></div></div>
+            <p class="meta">Research score 5 / 10 · Paid (the API needs a paid plan)</p>
+            <p><strong>What it is:</strong> A paid website for making and sharing storyboards with clients.</p>
+            <p><strong>Why not:</strong> It costs money and doesn't solve face consistency. We built our own Board Studio, with high-quality downloads.</p>
+          </article>
+
+          <article class="card" data-status="notused">
+            <div class="card-head"><h3>StudioBinder <small>production planner</small></h3><div class="badges"><span class="badge notused">Not used</span></div></div>
+            <p class="meta">Research score 2 / 10 · Paid tiers</p>
+            <p><strong>What it is:</strong> A website for planning a shoot: schedules, call sheets and shot lists.</p>
+            <p><strong>Why not:</strong> It has no API, so our code can't talk to it. We only borrowed ideas for our shot-list fields.</p>
+          </article>
+
+          <article class="card" data-status="notused">
+            <div class="card-head"><h3>OpenMMLab <small>vision toolbox</small></h3><div class="badges"><span class="badge notused">Not used</span></div></div>
+            <p class="meta">Research score 2 / 10 · Apache-2.0</p>
+            <p><strong>What it is:</strong> A big collection of computer-vision tools.</p>
+            <p><strong>Why not:</strong> Its development has largely stopped since late 2023. We didn't want to depend on code that isn't being updated.</p>
+          </article>
+
+          <article class="card" data-status="notused">
+            <div class="card-head"><h3>WonderUnit Storyboarder <small>drawing app</small></h3><div class="badges"><span class="badge notused">Not used</span></div></div>
+            <p class="meta">Research score 2 / 10 · Licence unclear</p>
+            <p><strong>What it is:</strong> A free desktop app for sketching storyboards by hand.</p>
+            <p><strong>Why not:</strong> It has no API, its licence is unclear and it's barely maintained. We only looked at it for ideas.</p>
+          </article>
+
+          <article class="card" data-status="notused">
+            <div class="card-head"><h3>FrameForge Studio <small>3D previz app</small></h3><div class="badges"><span class="badge notused">Not used</span></div></div>
+            <p class="meta">Research score 1 / 10 · Paid, closed source</p>
+            <p><strong>What it is:</strong> A paid desktop app for placing virtual cameras in a 3D set.</p>
+            <p><strong>Why not:</strong> There is no way for code to control it. It's useful only as an idea for how to describe lenses.</p>
+          </article>
+
+          <article class="card" data-status="notused">
+            <div class="card-head"><h3>PySceneDetect <small>video cut finder</small></h3><div class="badges"><span class="badge notused">Not used</span></div></div>
+            <p class="meta">Research score 1.5 / 10 · BSD-3</p>
+            <p><strong>What it is:</strong> A tool that finds the cuts in a finished video.</p>
+            <p><strong>Why not:</strong> It solves the wrong problem. Our pipeline works with words and still pictures, not video.</p>
+          </article>
+        </div>
+      </section>
+
+      <!-- 9. Scoreboard -->
+      <section id="scoreboard">
+        <h2>Scoreboard: every tool on one page</h2>
+        <p>The research score is from August. The "Today" column is what's true now.</p>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Tool</th><th>Its job</th><th>Research score</th><th>Today</th><th>Note</th></tr></thead>
+            <tbody>
+              <tr class="sep"><td colspan="5">From the research</td></tr>
+              <tr><td><strong>ComfyUI + Flux.1-dev</strong></td><td>Draws the pictures</td><td class="score">9.5</td><td><span class="badge using">Using now</span></td><td>Heart of the system</td></tr>
+              <tr><td><strong>Diffusers</strong></td><td>Image AI library</td><td class="score">9.5</td><td><span class="badge notused">Not used</span></td><td>ComfyUI has its own engine</td></tr>
+              <tr><td><strong>PhotoMaker V2</strong></td><td>Keeps faces the same</td><td class="score">8.5</td><td><span class="badge replaced">Replaced</span></td><td>By USO (licence + wrong model family)</td></tr>
+              <tr><td><strong>ControlNet</strong></td><td>Camera / pose guide</td><td class="score">8.5</td><td><span class="badge off">Switched off</span></td><td>Code exists, never turned on</td></tr>
+              <tr><td><strong>UNO / UMO</strong></td><td>Several characters together</td><td class="score">8</td><td><span class="badge replaced">Replaced</span></td><td>By USO (add-on bug)</td></tr>
+              <tr><td><strong>screenplay-tools</strong></td><td>Reads script files</td><td class="score">8</td><td><span class="badge notused">Not used</span></td><td>We built our own parser</td></tr>
+              <tr><td><strong>Hugging Face Hub</strong></td><td>Where models are downloaded from</td><td class="score">7</td><td><span class="badge using">Using now</span></td><td>Downloads only, as advised</td></tr>
+              <tr><td><strong>CLIP</strong></td><td>Look / style check</td><td class="score">7</td><td><span class="badge using">Using now</span></td><td>Continuity check</td></tr>
+              <tr><td><strong>DeepFace</strong></td><td>Face comparison</td><td class="score">7</td><td><span class="badge notused">Not used</span></td><td>SFace does it</td></tr>
+              <tr><td><strong>Story2Board</strong></td><td>Storyboard research code</td><td class="score">7</td><td><span class="badge notused">Not used</span></td><td>Too small and young</td></tr>
+              <tr><td><strong>OpenCV</strong></td><td>Picture toolbox</td><td class="score">6</td><td><span class="badge using">Using now</span></td><td>Runs YuNet + SFace, colour checks</td></tr>
+              <tr><td><strong>InsightFace</strong></td><td>Face recognition</td><td class="score">6</td><td><span class="badge notused">Not used</span></td><td>Avoided: research-only face models</td></tr>
+              <tr><td><strong>Boords</strong></td><td>Storyboard website</td><td class="score">5</td><td><span class="badge notused">Not used</span></td><td>Paid; we built Board Studio</td></tr>
+              <tr><td><strong>IP-Adapter-FaceID / InstantID</strong></td><td>Copies a face</td><td class="score">4</td><td><span class="badge replaced">Replaced</span></td><td>Used in v1, removed (licence)</td></tr>
+              <tr><td><strong>StudioBinder</strong></td><td>Production planner</td><td class="score">2</td><td><span class="badge notused">Not used</span></td><td>No API</td></tr>
+              <tr><td><strong>OpenMMLab</strong></td><td>Vision toolbox</td><td class="score">2</td><td><span class="badge notused">Not used</span></td><td>No longer maintained</td></tr>
+              <tr><td><strong>WonderUnit Storyboarder</strong></td><td>Drawing app</td><td class="score">2</td><td><span class="badge notused">Not used</span></td><td>No API, unclear licence</td></tr>
+              <tr><td><strong>PySceneDetect</strong></td><td>Finds video cuts</td><td class="score">1.5</td><td><span class="badge notused">Not used</span></td><td>Wrong job (video)</td></tr>
+              <tr><td><strong>FrameForge Studio</strong></td><td>3D previz app</td><td class="score">1</td><td><span class="badge notused">Not used</span></td><td>Closed and paid</td></tr>
+              <tr class="sep"><td colspan="5">Added later (not in the research)</td></tr>
+              <tr><td><strong>USO</strong></td><td>Keeps faces the same</td><td class="score">—</td><td><span class="badge using">Using now</span></td><td>Replaced PhotoMaker, UNO, InstantID</td></tr>
+              <tr><td><strong>YuNet + SFace</strong></td><td>Finds and checks faces</td><td class="score">—</td><td><span class="badge using">Using now</span></td><td>Replaced InsightFace / DeepFace</td></tr>
+              <tr><td><strong>MediaPipe</strong></td><td>Counts faces, checks hands</td><td class="score">—</td><td><span class="badge using">Using now</span></td><td>First free quality check</td></tr>
+              <tr><td><strong>Groq · gpt-oss-120b</strong></td><td>Text brain</td><td class="score">—</td><td><span class="badge using">Using now</span></td><td>Replaced Gemini 2.5 Flash</td></tr>
+              <tr><td><strong>Groq · qwen3.8-27b</strong></td><td>Picture inspector</td><td class="score">—</td><td><span class="badge using">Using now</span></td><td>Looks at every new picture</td></tr>
+              <tr><td><strong>Kaggle (Tesla T4)</strong></td><td>Free GPU</td><td class="score">—</td><td><span class="badge using">Using now</span></td><td>12-hour sessions</td></tr>
+              <tr><td><strong>Cloudflare tunnel</strong></td><td>Connects backend to Kaggle</td><td class="score">—</td><td><span class="badge using">Using now</span></td><td>New address every session</td></tr>
+              <tr><td><strong>ReportLab + Pillow</strong></td><td>Builds the board PDF + PNG</td><td class="score">—</td><td><span class="badge using">Using now</span></td><td>Full-quality downloads</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- 10. Warnings -->
+      <section id="warnings">
+        <h2>Honest warnings, and what actually happened</h2>
+        <ul class="warnings">
+          <li><span class="said">"Keeping the same face across hundreds of pictures is still an unsolved research problem."</span>True. It took three tries (InstantID, then UNO, then USO), plus a face-repaint pass and a face checker. Today RAM's faces match his reference with an average score of 0.58 (it was 0.44 before the repaint pass), and SITA's average 0.74.</li>
+          <li><span class="said">"No free model lets you set the camera directly."</span>True. We steer framing with careful wording and a words-only first pass. A few shots still come out at the wrong size, which is why the board can crop (reframe) a picture.</li>
+          <li><span class="said">"InsightFace face models are research-only."</span>Avoided. We used YuNet + SFace instead, which are free for commercial use.</li>
+          <li class="big"><span class="said">New, and not in the research: Flux.1-dev's own licence is non-commercial.</span>The pictures may be used commercially, but running the model inside a paid product needs a commercial licence from Black Forest Labs. Sort this out before selling the product.</li>
+          <li><span class="said">"Free hosted AI services won't handle the volume."</span>True. We used a free Kaggle GPU instead. It has its own limits: a weekly hour allowance, a 12-hour session limit, and a new tunnel address every time.</li>
+          <li><span class="said">"Avoid OpenMMLab, Storyboarder and PySceneDetect."</span>Followed. None of them are used.</li>
+        </ul>
+      </section>
+
+      <!-- 11. Glossary -->
+      <section id="words">
+        <h2>Words explained</h2>
+        <dl class="glossary">
+          <div><dt>AI model</dt><dd>A trained "brain" file that does one kind of job, like writing text or drawing pictures.</dd></div>
+          <div><dt>API</dt><dd>A doorway that lets one program send requests to another, with no person clicking buttons.</dd></div>
+          <div><dt>GPU</dt><dd>A graphics card. It does thousands of small calculations at once, which image AI needs.</dd></div>
+          <div><dt>Open source</dt><dd>Software whose code is public and free to use, within its licence rules.</dd></div>
+          <div><dt>Licence</dt><dd>The rulebook for a tool. "Non-commercial" means you can't use it in something you sell.</dd></div>
+          <div><dt>Node (ComfyUI)</dt><dd>One small box in a ComfyUI recipe, such as "load model" or "draw picture". Boxes are wired together.</dd></div>
+          <div><dt>Add-on / custom node</dt><dd>Extra boxes made by other people. Useful, but they can have bugs, as UNO's did.</dd></div>
+          <div><dt>Prompt</dt><dd>The written description we give the image AI, such as "close-up of SITA reading a letter".</dd></div>
+          <div><dt>Reference photo</dt><dd>A locked picture of a character that the AI copies the face from.</dd></div>
+          <div><dt>Embedding / fingerprint</dt><dd>A list of numbers that describes a face or a picture, so two can be compared.</dd></div>
+          <div><dt>Parser</dt><dd>Code that reads a file and splits it into parts, such as scenes, dialogue and characters.</dd></div>
+          <div><dt>Tunnel</dt><dd>A safe passage that gives a hidden computer a public web address.</dd></div>
+          <div><dt>Continuity</dt><dd>Keeping things the same from shot to shot: faces, clothes, lighting, props.</dd></div>
+          <div><dt>Storyboard</dt><dd>A sheet of pictures showing each camera shot of a film, in order, with notes.</dd></div>
+        </dl>
+      </section>
+    </main>
+  </div>
+
+  <footer>
+    This is a simple version of <code>STORYBOARD_ENGINE_TOOL_RESEARCH.md</code> (research done on 29 August 2026); the original file is unchanged.
+    The "Today" status was checked against the project's code on 1 October 2026. For the full project story, see <code>architecture.md</code> in the project folder.
+  </footer>
+</div>
+
+<!-- Diagram sources (kept as plain text so the browser doesn't treat <br/> as HTML) -->
+<script type="text/plain" id="d-pipeline">
+flowchart TD
+  S["Screenplay file<br/>Fountain, Final Draft, PDF, Word or text"] --> P
+  P["Read the script<br/><b>Our own parser</b> (no AI)"] --> U
+  U["Understand the story and plan every shot<br/><b>Groq · gpt-oss-120b</b>"] --> L
+  L["Make each character's reference photos<br/><b>ComfyUI + Flux.1-dev</b>"] --> G
+  G["Draw each shot in 3 passes<br/><b>ComfyUI + Flux.1-dev + USO</b>"] --> Q
+  Q{"Is the picture good?<br/><b>MediaPipe · YuNet + SFace<br/>Groq · qwen3.8-27b</b>"}
+  Q -- "no: try again, up to 3 times" --> G
+  Q -- "yes" --> C
+  C["Does it match the other shots?<br/><b>CLIP + OpenCV colours</b>"] --> B
+  B["Build the storyboard sheet<br/><b>ReportLab PDF + Pillow PNG</b>"] --> D["Download"]
+  HF["Hugging Face Hub<br/>model downloads"] -.-> K
+  K["Kaggle free GPU<br/>reached through a Cloudflare tunnel"] -.-> L
+  K -.-> G
+  class S,D io
+  class P,U,L,G,Q,C,B using
+  class HF,K infra
+</script>
+
+<script type="text/plain" id="d-then-now">
+flowchart LR
+  H1["AUGUST RESEARCH SAID"] ~~~ H2["WHAT WE USE TODAY"]
+  a1["ComfyUI + Flux.1-dev"] -- "kept" --> b1["ComfyUI + Flux.1-dev"]
+  a2["PhotoMaker V2<br/>faces"] -- "swapped" --> b2["USO"]
+  a3["UNO / UMO<br/>several people"] -- "swapped" --> b2
+  a4["Gemini 2.5 Flash<br/>text AI"] -- "swapped" --> b4["Groq · gpt-oss-120b"]
+  a5["InsightFace / DeepFace<br/>face check"] -- "swapped" --> b5["YuNet + SFace<br/>through OpenCV"]
+  a6["CLIP + OpenCV<br/>look and colour check"] -- "kept" --> b6["CLIP + OpenCV"]
+  a7["ControlNet<br/>camera framing"] -- "switched off" --> b7["Prompt wording +<br/>words-only first pass"]
+  a8["screenplay-tools<br/>script reader"] -- "built our own" --> b8["Our own parser"]
+  a9["Diffusers<br/>image library"] -- "not needed" --> b9["ComfyUI's own engine"]
+  a10["Rented or owned GPU"] -- "swapped" --> b10["Kaggle free T4<br/>+ Cloudflare tunnel"]
+  a11["Hugging Face Hub<br/>model shelf"] -- "kept" --> b11["Hugging Face Hub"]
+  a12["Shot-list export<br/>ReportLab"] -- "grew into" --> b12["Board engine<br/>ReportLab + Pillow"]
+  a13["Nothing planned"] -- "added" --> b13["Picture inspector<br/>MediaPipe +<br/>Groq · qwen3.8-27b"]
+  class H1,H2 head
+  class a1,a2,a3,a4,a5,a6,a7,a8,a9,a10,a11,a12,a13 plan
+  class b1,b2,b4,b5,b6,b7,b8,b9,b10,b11,b12,b13 using
+</script>
+
+<script>
+  // Theme toggle (the choice is a per-viewer convenience; the page works without storage).
+  (function () {
+    var root = document.documentElement, btn = document.getElementById("themeBtn");
+    function isDark() {
+      if (root.dataset.theme) return root.dataset.theme === "dark";
+      return window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
+    }
+    function label() { btn.textContent = isDark() ? "Light mode" : "Dark mode"; }
+    btn.addEventListener("click", function () {
+      root.dataset.theme = isDark() ? "light" : "dark";
+      try { localStorage.setItem("tool-guide-theme", root.dataset.theme); } catch (e) {}
+      label();
+      document.dispatchEvent(new Event("themechange"));
+    });
+    if (window.matchMedia) {
+      window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", function () {
+        label(); if (!root.dataset.theme) document.dispatchEvent(new Event("themechange"));
+      });
+    }
+    label();
+
+    // Highlight the section currently on screen in the contents list.
+    var links = Array.prototype.slice.call(document.querySelectorAll(".toc a"));
+    if ("IntersectionObserver" in window) {
+      var obs = new IntersectionObserver(function (entries) {
+        entries.forEach(function (e) {
+          if (!e.isIntersecting) return;
+          links.forEach(function (a) { a.classList.toggle("active", a.getAttribute("href") === "#" + e.target.id); });
+        });
+      }, { rootMargin: "-20% 0px -70% 0px" });
+      document.querySelectorAll("main section[id]").forEach(function (s) { obs.observe(s); });
+    }
+  })();
+</script>
+
+<script type="module">
+  import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs";
+
+  const v = (name) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+  let counter = 0;
+
+  function classDefs() {
+    return `
+  classDef using fill:${v("--using-bg")},stroke:${v("--using")},color:${v("--text")},stroke-width:1.5px
+  classDef plan fill:${v("--surface-2")},stroke:${v("--border-strong")},color:${v("--text")}
+  classDef io fill:${v("--accent-soft")},stroke:${v("--accent")},color:${v("--text")},stroke-width:1.5px
+  classDef infra fill:${v("--replaced-bg")},stroke:${v("--replaced")},color:${v("--text")}
+  classDef head fill:transparent,stroke:transparent,color:${v("--muted")},font-weight:bold`;
+  }
+
+  async function drawAll() {
+    mermaid.initialize({
+      startOnLoad: false,
+      securityLevel: "strict",
+      theme: "base",
+      fontFamily: v("--font"),
+      themeVariables: {
+        fontFamily: v("--font"),
+        fontSize: "15px",
+        primaryColor: v("--surface-2"),
+        primaryTextColor: v("--text"),
+        primaryBorderColor: v("--border-strong"),
+        lineColor: v("--muted"),
+        textColor: v("--text"),
+        edgeLabelBackground: v("--surface"),
+        background: v("--surface"),
+      },
+      flowchart: { htmlLabels: true, curve: "basis", useMaxWidth: true, padding: 12 },
+    });
+    for (const fig of document.querySelectorAll("figure[data-diagram]")) {
+      const box = fig.querySelector(".diagram");
+      const src = document.getElementById(fig.dataset.diagram).textContent + classDefs();
+      try {
+        const { svg } = await mermaid.render("mmd-" + (++counter), src);
+        box.innerHTML = svg;
+        const el = box.querySelector("svg");
+        if (el && el.viewBox.baseVal.width) el.style.setProperty("--nat", el.viewBox.baseVal.width + "px");
+      } catch (err) {
+        box.innerHTML = '<div class="loading">Sorry, this diagram could not be drawn.</div>';
+        console.error(err);
+      }
+    }
+  }
+
+  drawAll();
+  document.addEventListener("themechange", drawAll);
+</script>
+</body>
+</html>

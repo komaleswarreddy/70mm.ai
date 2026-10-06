@@ -11,6 +11,9 @@ export interface Project {
   themes?: string; // JSON string
   conflicts?: string; // JSON string
   endings?: string; // JSON string
+  screenplay_structure?: string; // JSON string {acts: [...]} -- Stage 2 output
+  period?: string; // e.g. "India, 1965"
+  board_legend_settings?: string; // JSON string -- Stage 8 board settings (BoardSettings)
   created_at: string;
   updated_at: string;
   scenes?: Scene[];
@@ -32,6 +35,9 @@ export interface Character {
   backstory?: string;
   reference_image_url?: string;
   relationships?: string; // JSON string structure
+  reference_image_paths?: string; // JSON string list -- Stage 6 locked reference set
+  locked_seed?: number;
+  is_locked?: number; // 0/1
 }
 
 
@@ -47,6 +53,17 @@ export interface Scene {
   action_blocks?: ActionBlock[];
   dialogues?: Dialogue[];
   shots?: Shot[];
+  // Stage 3 -- scene understanding
+  int_ext?: string;
+  location?: string;
+  time_of_day?: string;
+  characters_present?: string; // JSON string list[str]
+  action_summary?: string;
+  emotion?: string;
+  conflict?: string;
+  key_objects?: string; // JSON string list[str]
+  visual_emphasis?: string;
+  continuity_notes?: string;
 }
 
 export interface ActionBlock {
@@ -87,6 +104,24 @@ export interface Shot {
   created_at: string;
   updated_at: string;
   storyboard_frames?: StoryboardFrame[];
+  // Stage 4/5 -- automatic shot division + cinematography plan
+  shot_type?: string;
+  reasoning?: string;
+  camera_height?: string;
+  framing?: string;
+  composition_notes?: string;
+  lighting_detail?: string; // JSON string
+  contrast?: string;
+  depth_of_field?: string;
+  perspective_notes?: string;
+  characters_in_shot?: string; // JSON string list[str]
+  // Stage 8 -- production board sheet
+  board_caption?: string;
+  board_dialogue?: string;
+  board_crop?: string; // JSON [l, t, r, b] in source pixels
+  // Stage 9 -- continuity QA
+  needs_review?: number; // 0/1
+  continuity_score?: number;
 }
 
 export interface ProjectVersion {
@@ -133,6 +168,52 @@ export interface StoryboardFrame {
   negative_prompt?: string;
   status: string;
   created_at: string;
+}
+
+/** Stage 8 board sheet text, stored as JSON in Project.board_legend_settings. */
+export interface BoardSettings {
+  title?: string;
+  title_native?: string;
+  title_roman?: string;
+  title_sub?: string;
+  subtitle?: string;
+  period?: string;
+  tagline?: string;
+  tagline_translation?: string;
+  postmark_ring?: string;
+  postmark_center?: string;
+  end_lines?: string[];
+  end_translation?: string;
+  signature?: string;
+  signature_roman?: string;
+  end_stamp?: string;
+  cast_notes?: string[];
+  credit?: string;
+  legend?: Record<string, string[]>;
+}
+
+export interface Board {
+  id: string;
+  project_id: string;
+  board_number: number;
+  scene_range_start: number;
+  scene_range_end: number;
+  title?: string;
+  length_label?: string;
+  page_range_label?: string;
+  output_image_path?: string;
+  output_pdf_path?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ContinuityCheckResult {
+  shot_id: string;
+  needs_review: boolean;
+  flags: string[];
+  identity_score?: number;
+  color_distance?: number;
+  regenerated: boolean;
 }
 
 function getAuthToken(): string | null {
@@ -194,8 +275,16 @@ export const api = {
     }),
   deleteProject: (id: string) => 
     request<void>(`/projects/${id}`, { method: 'DELETE' }),
-  duplicateProject: (id: string) => 
+  duplicateProject: (id: string) =>
     request<Project>(`/projects/${id}/duplicate`, {
+      method: 'POST',
+    }),
+  structureProject: (id: string) =>
+    request<Project>(`/projects/${id}/structure`, {
+      method: 'POST',
+    }),
+  composeBoards: (id: string) =>
+    request<Board[]>(`/projects/${id}/boards/compose`, {
       method: 'POST',
     }),
   
@@ -226,10 +315,18 @@ export const api = {
       method: 'PUT',
       body: JSON.stringify(updates),
     }),
-  reorderScenes: (ids: string[]) => 
+  reorderScenes: (ids: string[]) =>
     request<void>('/scenes/reorder', {
       method: 'POST',
       body: JSON.stringify({ ids }),
+    }),
+  understandScene: (id: string) =>
+    request<Scene>(`/scenes/${id}/understand`, {
+      method: 'POST',
+    }),
+  generateShotPlan: (sceneId: string) =>
+    request<Shot[]>(`/scenes/${sceneId}/shots/generate-plan`, {
+      method: 'POST',
     }),
 
   // Shots
@@ -247,10 +344,19 @@ export const api = {
     }),
   deleteShot: (id: string) => 
     request<void>(`/shots/${id}`, { method: 'DELETE' }),
-  reorderShots: (ids: string[]) => 
+  reorderShots: (ids: string[]) =>
     request<void>('/shots/reorder', {
       method: 'POST',
       body: JSON.stringify({ ids }),
+    }),
+  editShot: (id: string, instruction: string) =>
+    request<Shot>(`/shots/${id}/edit`, {
+      method: 'PATCH',
+      body: JSON.stringify({ instruction }),
+    }),
+  checkShotContinuity: (id: string, reinforcedRegenerate: boolean = false) =>
+    request<ContinuityCheckResult>(`/shots/${id}/continuity-check?reinforced_regenerate=${reinforcedRegenerate}`, {
+      method: 'POST',
     }),
 
   // AI Engines
@@ -298,10 +404,46 @@ export const api = {
       method: 'PUT',
       body: JSON.stringify(updates),
     }),
-  deleteCharacter: (id: string) => 
+  deleteCharacter: (id: string) =>
     request<void>(`/characters/${id}`, {
       method: 'DELETE',
     }),
+  // Stage 6: pass 1-4 reference photos to lock user-supplied images, or no
+  // files at all to auto-generate one with a fresh seed and freeze that seed.
+  lockCharacterReference: async (id: string, files?: File[]) => {
+    // Backend takes 4 named single-file params (file1..file4), not a
+    // List[UploadFile] -- a confirmed fastapi 0.111.0 bug fails multipart
+    // list validation regardless of file count. See characters.py.
+    const trimmed = (files || []).slice(0, 4);
+    const token = getAuthToken();
+    const headers: HeadersInit = {};
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+
+    // No files -> send NO body at all, not an empty FormData. Verified
+    // live: this fastapi/starlette version 400s with "There was an error
+    // parsing the body" on a multipart/form-data request with zero actual
+    // parts (python-multipart can't parse an empty multipart stream) --
+    // omitting the body entirely sidesteps multipart parsing altogether
+    // and correctly resolves all four File(None) params to None, which is
+    // exactly the auto-generate-and-freeze-a-seed path this call wants.
+    let body: FormData | undefined;
+    if (trimmed.length > 0) {
+      const formData = new FormData();
+      trimmed.forEach((f, i) => formData.append(`file${i + 1}`, f));
+      body = formData;
+    }
+
+    const res = await fetch(`${API_BASE}/characters/${id}/lock-reference`, {
+      method: 'POST',
+      body,
+      headers,
+    });
+    if (!res.ok) {
+      const errorText = await res.text();
+      throw new Error(errorText || `Failed to lock character reference (${res.status})`);
+    }
+    return res.json() as Promise<Character>;
+  },
   
   // Batch Shots
   batchUpdateShots: (ids: string[], updates: Partial<Shot>) =>

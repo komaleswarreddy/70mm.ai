@@ -198,7 +198,7 @@ export default function Dashboard() {
                     </div>
                     
                     <p className="text-xs text-gray-400 line-clamp-2 leading-relaxed">
-                      {proj.logline || "No logline specified. Generate story outline using Gemini inside."}
+                      {proj.logline || "No logline specified. Generate story outline using Groq inside."}
                     </p>
                   </div>
                   
