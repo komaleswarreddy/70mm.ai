@@ -1,3 +1,4 @@
+# Auth Service Module
 import os
 import logging
 from pathlib import Path
@@ -123,3 +124,4 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
             detail="Invalid authentication credentials",
             headers={"WWW-Authenticate": "Bearer"},
         )
+
