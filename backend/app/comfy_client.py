@@ -1,3 +1,4 @@
+# Comfy Client Module
 import json
 import logging
 import uuid
@@ -204,3 +205,4 @@ class ComfyClient:
             logger.error(f"ComfyUI generation error: {str(e)}")
 
         return None
+
