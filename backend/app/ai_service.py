@@ -1,3 +1,4 @@
+# AI Service Module
 import json
 import logging
 import re
@@ -1360,3 +1361,4 @@ Return JSON only: {{"captions": [{{"shot_number": <int>, "caption": "<text>", "d
     except Exception as e:
         logger.warning(f"draft_board_captions: could not parse LLM output ({e})")
         return {}
+
