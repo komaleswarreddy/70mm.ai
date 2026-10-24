@@ -250,7 +250,9 @@ def parse_screenplay(content: str) -> Dict[str, Any]:
                     "content": " ".join(current_dialogue)
                 })
 
-            characters.add(clean_char_name)
+            # group cues ('ALL 3', 'VASU AND KALYAN') speak the line but are not cast members
+            if not re.search(r'\b(AND|ALL|BOTH|EVERYONE)\b', clean_char_name):
+                characters.add(clean_char_name)
             scene = get_or_create_scene()
             
             # Combine back to string for backwards compatibility database save
