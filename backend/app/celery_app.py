@@ -1,3 +1,4 @@
+# Celery App Module
 import os
 import logging
 from celery import Celery
@@ -39,3 +40,4 @@ def run_background_task(task_func, *args, **kwargs):
         logger.warning(f"Celery broker unavailable. Running fallback execution synchronously. Error: {str(e)}")
         # Execute task synchronously as fallback
         task_func.apply(args=args, kwargs=kwargs)
+
