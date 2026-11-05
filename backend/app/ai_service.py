@@ -1,3 +1,9 @@
+"""
+Module: AI Service Engine
+Multi-provider LLM routing, story generation, scene formulation,
+director's muse, prompt builder, screenplay structuring, scene understanding,
+and cinematography planning.
+"""
 import json
 import logging
 import re
