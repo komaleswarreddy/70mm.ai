@@ -1,3 +1,8 @@
+"""
+Module: Auth Service
+Firebase Admin SDK token verification, demo/mock user authentication,
+and FastAPI security dependencies.
+"""
 import os
 import logging
 from pathlib import Path
